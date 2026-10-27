@@ -1,0 +1,20 @@
+# Prometheus is a PRIVATE backend. It is never queried by browsers or customers; the API is the
+# only query path and generates tenant-scoped PromQL from allow-listed query descriptors
+# (PRD §2.3). Retention (15d) is set by command-line flag in the Compose file.
+global:
+  # The scrape interval bounds dashboard freshness and alert latency (PRD ING-012). Alert
+  # evaluation windows must be at least 2× this value (ALERT-003).
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  # The platform's own metrics (SELF-002/SELF-003), from the API's internal listener.
+  # In local development the API runs on the host, reached via host.docker.internal.
+  - job_name: aop-api
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['host.docker.internal:9464']
+
+  - job_name: prometheus
+    static_configs:
+      - targets: ['localhost:9090']

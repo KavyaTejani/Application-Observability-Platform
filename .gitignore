@@ -1,0 +1,29 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+*.tsbuildinfo
+coverage/
+
+# Environment and secrets — only .env.example is committed
+.env
+.env.*
+!.env.example
+
+# Logs and OS noise
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db
+
+# Editors
+.vscode/*
+!.vscode/extensions.json
+.idea/
+
+# Local tool state
+.claude/
+playwright-report/
+test-results/

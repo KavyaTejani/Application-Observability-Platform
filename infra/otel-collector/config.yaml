@@ -1,0 +1,36 @@
+# OpenTelemetry Collector on the private network. In the MVP it receives the platform's own
+# OTLP telemetry; it is also the planned integration point for standard OTLP ingestion from
+# customer applications (PRD ING-010, Phase 2). Customer OTLP is NOT accepted here directly:
+# that path must go through the API gateway, which authenticates and injects tenant context.
+receivers:
+  otlp:
+    protocols:
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: 200
+  batch: {}
+
+exporters:
+  # Placeholder exporter until platform OTel export is wired up (PRD SELF-005, P1).
+  debug:
+    verbosity: basic
+
+extensions:
+  health_check:
+    endpoint: 0.0.0.0:13133
+
+service:
+  extensions: [health_check]
+  pipelines:
+    metrics:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [debug]
+    logs:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [debug]

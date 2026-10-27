@@ -1,0 +1,62 @@
+# Loki in MULTI-TENANT mode. `auth_enabled: true` makes every request require an
+# `X-Scope-OrgID` header. Loki does not authenticate that header itself: the API gateway is the
+# trusted component that sets it to the caller's organizationId, overwriting anything a client
+# sends (PRD LOG-002, LOG-009). Loki is never exposed to browsers or customers.
+auth_enabled: true
+
+server:
+  http_listen_port: 3100
+  grpc_listen_port: 9096
+  log_level: warn
+
+common:
+  instance_addr: 127.0.0.1
+  path_prefix: /loki
+  storage:
+    filesystem:
+      chunks_directory: /loki/chunks
+      rules_directory: /loki/rules
+  replication_factor: 1
+  ring:
+    kvstore:
+      store: inmemory
+
+schema_config:
+  configs:
+    - from: 2024-01-01
+      store: tsdb
+      object_store: filesystem
+      schema: v13
+      index:
+        prefix: index_
+        period: 24h
+
+limits_config:
+  # Default log retention: 7 days (PRD RET-001). Per-tenant overrides are a P1 feature.
+  retention_period: 168h
+  # Request IDs and attributes are stored as structured metadata, not labels (LOG-009).
+  allow_structured_metadata: true
+  # Cardinality guard: only low-cardinality labels (project, service, environment, severity).
+  max_label_names_per_series: 8
+  reject_old_samples: true
+  reject_old_samples_max_age: 24h
+  max_query_length: 721h
+  max_entries_limit_per_query: 5000
+
+compactor:
+  working_directory: /loki/compactor
+  # Retention is enforced only when the compactor runs with retention enabled; a config value
+  # alone does not delete data (PRD RET-003).
+  retention_enabled: true
+  compaction_interval: 10m
+  retention_delete_delay: 2h
+  delete_request_store: filesystem
+
+ruler:
+  storage:
+    type: local
+    local:
+      directory: /loki/rules
+
+analytics:
+  reporting_enabled: false
