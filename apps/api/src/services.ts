@@ -10,6 +10,14 @@ import { CustomerMetrics } from './modules/telemetry/customer-metrics.js';
 import { TelemetryIngestService } from './modules/telemetry/ingest.service.js';
 import { LokiWriter, type LogWriter } from './modules/telemetry/loki-writer.js';
 import type { PlatformMetrics } from './observability/platform-metrics.js';
+import {
+  LokiQueryClient,
+  PrometheusQueryClient,
+  type LokiQueryApi,
+  type PrometheusQueryApi,
+} from './modules/query/backend-clients.js';
+import { LogsQueryService } from './modules/query/logs-query.service.js';
+import { MetricsQueryService } from './modules/query/metrics-query.service.js';
 
 export interface Services {
   auth: AuthService;
@@ -20,6 +28,8 @@ export interface Services {
   projects: ProjectService;
   customerMetrics: CustomerMetrics;
   ingest: TelemetryIngestService;
+  metricsQuery: MetricsQueryService;
+  logsQuery: LogsQueryService;
 }
 
 export interface ServiceOptions {
@@ -29,6 +39,9 @@ export interface ServiceOptions {
   platformMetrics: PlatformMetrics;
   /** Overrides the Loki writer (tests). Defaults to a real writer when LOKI_URL is set. */
   logWriter?: LogWriter | null;
+  /** Override the query backends (tests). Default to real clients when URLs are configured. */
+  prometheusQuery?: PrometheusQueryApi | null;
+  lokiQuery?: LokiQueryApi | null;
   now?: () => Date;
 }
 
@@ -60,6 +73,24 @@ export function createServices(options: ServiceOptions): Services {
         ? new LokiWriter(config.lokiUrl, config.backendTimeoutMs)
         : null;
 
+  const prometheusQuery =
+    options.prometheusQuery !== undefined
+      ? options.prometheusQuery
+      : config.prometheusUrl
+        ? new PrometheusQueryClient(
+            config.prometheusUrl,
+            config.backendTimeoutMs,
+            platformMetrics,
+            logger,
+          )
+        : null;
+  const lokiQuery =
+    options.lokiQuery !== undefined
+      ? options.lokiQuery
+      : config.lokiUrl
+        ? new LokiQueryClient(config.lokiUrl, config.backendTimeoutMs, platformMetrics, logger)
+        : null;
+
   return {
     auth: new AuthService(logger),
     sessions: new SessionService(
@@ -84,5 +115,7 @@ export function createServices(options: ServiceOptions): Services {
       logger,
       now,
     }),
+    metricsQuery: new MetricsQueryService(prometheusQuery, now),
+    logsQuery: new LogsQueryService(lokiQuery, now),
   };
 }

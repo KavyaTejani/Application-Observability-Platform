@@ -27,7 +27,7 @@ class RecordingWriter implements LogWriter {
 describe('SDK → ingestion API (end to end)', () => {
   const writer = new RecordingWriter();
   const platform = buildTestApp({ limiter: unlimited, logWriter: writer });
-  const internal = createInternalApp(platform.metrics, platform.customerMetrics.registry);
+  const internal = createInternalApp(platform.metrics, platform.customerMetrics);
   let server: Server;
   let endpoint: string;
 
@@ -74,7 +74,12 @@ describe('SDK → ingestion API (end to end)', () => {
       dropped: { bufferFull: 0, nonRetryable: 0, retriesExhausted: 0 },
     });
 
-    // Metrics: server-scoped series, route templates only.
+    // Metrics: server-scoped series, route templates only. Like Prometheus, scrape twice: new
+    // series are exported at 0 first (so rate() counts their first requests), then with values.
+    const first = (await request(internal).get('/telemetry-metrics')).text;
+    expect(first).toMatch(
+      new RegExp(`app_http_requests_total\\{[^}]*project_id="${projectId}"[^}]*\\} 0`),
+    );
     const scraped = (await request(internal).get('/telemetry-metrics')).text;
     const mine = scraped
       .split('\n')

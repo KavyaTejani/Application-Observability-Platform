@@ -76,7 +76,7 @@ async function main(): Promise<void> {
     platformMetrics: metrics,
   });
   const app = createApp({ config, logger, health, metrics, ...services });
-  const internalApp = createInternalApp(metrics, services.customerMetrics.registry);
+  const internalApp = createInternalApp(metrics, services.customerMetrics);
 
   const server: Server = app.listen(config.port, () =>
     logger.info({ port: config.port, env: config.env }, 'API listening'),

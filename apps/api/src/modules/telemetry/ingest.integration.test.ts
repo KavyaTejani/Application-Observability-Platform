@@ -46,7 +46,7 @@ describe('POST /v1/telemetry/batch', () => {
   const writer = new FakeLogWriter();
   const ctx = buildTestApp({ limiter: unlimited, logWriter: writer });
   const { app } = ctx;
-  const internal = createInternalApp(ctx.metrics, ctx.customerMetrics.registry);
+  const internal = createInternalApp(ctx.metrics, ctx.customerMetrics);
 
   let secret: string;
   let organizationId: string;

@@ -13,6 +13,7 @@ export interface ProjectSummary {
   name: string;
   slug: string;
   environment: Environment;
+  lastTelemetryAt: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -23,6 +24,7 @@ const toSummary = (project: ProjectDoc): ProjectSummary => ({
   name: project.name,
   slug: project.slug,
   environment: project.environment,
+  lastTelemetryAt: project.lastTelemetryAt?.toISOString() ?? null,
   createdAt: project.createdAt.toISOString(),
   updatedAt: project.updatedAt.toISOString(),
 });

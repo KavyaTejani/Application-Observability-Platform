@@ -16,6 +16,7 @@ import { healthRouter, statusRouter } from './modules/health/health.routes.js';
 import type { HealthService } from './modules/health/health.service.js';
 import { ingestionRouter } from './modules/ingestion/ingestion.routes.js';
 import { organizationRouter } from './modules/organizations/organization.routes.js';
+import { queryRouter } from './modules/query/query.routes.js';
 import { organizationProjectsRouter, projectRouter } from './modules/projects/project.routes.js';
 import type { PlatformMetrics } from './observability/platform-metrics.js';
 import type { Services } from './services.js';
@@ -31,6 +32,7 @@ export interface AppDeps extends Services {
 export function createApp(deps: AppDeps): Express {
   const { config, logger, health, metrics, sessions, projects, apiKeys, keyAuth, limiter, ingest } =
     deps;
+  const { metricsQuery, logsQuery } = deps;
   const app = express();
   app.disable('x-powered-by');
   app.set('trust proxy', config.trustProxy ? 1 : false);
@@ -71,6 +73,7 @@ export function createApp(deps: AppDeps): Express {
   api.use('/organizations/:organizationId/projects', organizationProjectsRouter(projects));
   api.use('/organizations', organizationRouter());
   api.use('/projects/:projectId/keys', apiKeyRouter(apiKeys));
+  api.use('/projects/:projectId', queryRouter({ metricsQuery, logsQuery, limiter }));
   api.use('/projects', projectRouter(projects));
   app.use('/api/v1', api);
 

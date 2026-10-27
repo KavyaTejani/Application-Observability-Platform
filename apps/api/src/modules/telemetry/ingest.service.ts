@@ -14,6 +14,7 @@ import type { z } from 'zod';
 import { AppError } from '../../lib/errors.js';
 import type { PlatformMetrics } from '../../observability/platform-metrics.js';
 import type { IngestionPrincipal } from '../api-keys/key-authenticator.js';
+import { ProjectModel } from '../projects/project.model.js';
 import type { CustomerMetrics } from './customer-metrics.js';
 import { LokiWriteError, type LogWriter } from './loki-writer.js';
 import { methodLabel, normalizeRoute, statusClassLabel } from './normalize.js';
@@ -36,6 +37,7 @@ export interface IngestResult {
 }
 
 const MAX_REPORTED_ERRORS = 50;
+const TOUCH_INTERVAL_MS = 30_000;
 
 export interface IngestDeps {
   customerMetrics: CustomerMetrics;
@@ -122,7 +124,28 @@ export class TelemetryIngestService {
     ingestRecords.inc({ signal: 'metrics', outcome: 'accepted' }, accepted.metrics);
     ingestRecords.inc({ signal: 'logs', outcome: 'accepted' }, accepted.logs);
     this.countRejections(rejected);
+    this.touchProject(principal);
     return { accepted, rejected, errors };
+  }
+
+  private readonly lastTouched = new Map<string, number>();
+
+  /**
+   * Records "last data received" for the project (shown as telemetry freshness in the UI). It is
+   * written at most every 30 s per project, off the request path, and `$max` keeps it monotonic
+   * when several instances write.
+   */
+  private touchProject(principal: IngestionPrincipal): void {
+    const key = principal.projectId.toHexString();
+    const now = this.now();
+    if (now.getTime() - (this.lastTouched.get(key) ?? 0) < TOUCH_INTERVAL_MS) return;
+    this.lastTouched.set(key, now.getTime());
+    ProjectModel.updateOne(
+      { _id: principal.projectId, organizationId: principal.organizationId },
+      { $max: { lastTelemetryAt: now } },
+    ).catch((error: unknown) =>
+      this.deps.logger.warn({ err: (error as Error).message }, 'Failed to record lastTelemetryAt'),
+    );
   }
 
   private parseEnvelope(body: unknown) {

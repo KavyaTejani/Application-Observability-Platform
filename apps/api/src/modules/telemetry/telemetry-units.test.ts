@@ -98,6 +98,54 @@ describe('CustomerMetrics cardinality caps', () => {
   });
 });
 
+describe('CustomerMetrics zero-initialization of new series', () => {
+  const obs = {
+    organizationId: 'o1',
+    projectId: 'p1',
+    environment: 'development',
+    service: 'svc',
+    method: 'POST',
+    route: '/checkout',
+    statusClass: '5xx',
+    durationSeconds: 0.2,
+  };
+  const count = (text: string) =>
+    Number(/app_http_requests_total\{[^}]*status_class="5xx"[^}]*\} (\d+)/.exec(text)?.[1]);
+
+  it('exports a new series at 0 first, then its real value on the next scrape', async () => {
+    const metrics = new CustomerMetrics({ maxRoutesPerProject: 10, maxServicesPerProject: 10 });
+    metrics.observe(obs);
+    metrics.observe(obs);
+    // Prometheus sees the 0, so increase() / rate() can count the first two errors.
+    expect(count(await metrics.scrape())).toBe(0);
+    expect(count(await metrics.scrape())).toBe(2);
+    // Known series update immediately.
+    metrics.observe(obs);
+    expect(count(await metrics.scrape())).toBe(3);
+  });
+
+  it('does not hold data forever when nothing scrapes', async () => {
+    let now = 0;
+    const metrics = new CustomerMetrics(
+      { maxRoutesPerProject: 10, maxServicesPerProject: 10 },
+      undefined,
+      () => now,
+      60_000,
+    );
+    metrics.observe(obs);
+    now += 61_000;
+    metrics.observe(obs); // the pending series is now older than the limit, so it is applied
+    expect(count(await metrics.registry.metrics())).toBe(2);
+  });
+
+  it('records histogram buckets after promotion', async () => {
+    const metrics = new CustomerMetrics({ maxRoutesPerProject: 10, maxServicesPerProject: 10 });
+    metrics.observe(obs);
+    expect(await metrics.scrape()).toMatch(/app_http_request_duration_seconds_count\{[^}]*\} 0/);
+    expect(await metrics.scrape()).toMatch(/app_http_request_duration_seconds_count\{[^}]*\} 1/);
+  });
+});
+
 describe('LokiWriter', () => {
   const entries = [
     {

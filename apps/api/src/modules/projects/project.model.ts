@@ -12,6 +12,8 @@ export interface ProjectDoc {
   status: 'active' | 'deleted';
   createdBy: Types.ObjectId;
   deletedAt?: Date;
+  /** Last time telemetry was accepted for this project (written at most every 30 s). */
+  lastTelemetryAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -26,6 +28,7 @@ const projectSchema = new Schema<ProjectDoc>(
     status: { type: String, enum: ['active', 'deleted'], default: 'active' },
     createdBy: { type: Schema.Types.ObjectId, required: true },
     deletedAt: { type: Date },
+    lastTelemetryAt: { type: Date },
   },
   { timestamps: true },
 );

@@ -7,6 +7,7 @@ import {
   type DependencyName,
   type DependencyProbe,
 } from '../modules/health/health.service.js';
+import type { LokiQueryApi, PrometheusQueryApi } from '../modules/query/backend-clients.js';
 import type { LogWriter } from '../modules/telemetry/loki-writer.js';
 import { createPlatformMetrics } from '../observability/platform-metrics.js';
 import { createServices } from '../services.js';
@@ -43,6 +44,9 @@ export interface TestAppOptions {
   now?: () => Date;
   /** Log backend for ingestion tests (a fake, or a real LokiWriter). Defaults to none. */
   logWriter?: LogWriter | null;
+  /** Query backends for exploration tests. Default to none (503 BACKEND_NOT_CONFIGURED). */
+  prometheusQuery?: PrometheusQueryApi | null;
+  lokiQuery?: LokiQueryApi | null;
 }
 
 /** Builds the public app with stubbed dependency probes (all up unless overridden). */
@@ -61,6 +65,8 @@ export function buildTestApp(options: TestAppOptions = {}) {
     platformMetrics: metrics,
     // Tests never reach a real Loki unless they pass a writer explicitly.
     logWriter: options.logWriter ?? null,
+    prometheusQuery: options.prometheusQuery ?? null,
+    lokiQuery: options.lokiQuery ?? null,
     now: options.now,
   });
   const app = createApp({ config, logger, health, metrics, ...services });

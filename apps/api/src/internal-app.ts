@@ -1,13 +1,6 @@
 import express, { type Express } from 'express';
-import type { Registry } from 'prom-client';
+import type { CustomerMetrics } from './modules/telemetry/customer-metrics.js';
 import type { PlatformMetrics } from './observability/platform-metrics.js';
-
-const serve =
-  (registry: Registry): express.RequestHandler =>
-  async (_req, res) => {
-    res.set('Content-Type', registry.contentType);
-    res.send(await registry.metrics());
-  };
 
 /**
  * Internal-only listener scraped by Prometheus over the private network. It is bound to a
@@ -16,12 +9,26 @@ const serve =
  * - `/metrics`: the platform's own health metrics.
  * - `/telemetry-metrics`: customer request metrics aggregated by the gateway, labelled with
  *   server-derived tenant IDs. These are kept separate so customer series never mix with
- *   platform series.
+ *   platform series. Serving goes through `scrape()`, which completes the zero-initialization
+ *   of new series (see CustomerMetrics).
  */
-export function createInternalApp(metrics: PlatformMetrics, customerRegistry?: Registry): Express {
+export function createInternalApp(
+  metrics: PlatformMetrics,
+  customerMetrics?: CustomerMetrics,
+): Express {
   const app = express();
   app.disable('x-powered-by');
-  app.get('/metrics', serve(metrics.registry));
-  if (customerRegistry) app.get('/telemetry-metrics', serve(customerRegistry));
+
+  app.get('/metrics', async (_req, res) => {
+    res.set('Content-Type', metrics.registry.contentType);
+    res.send(await metrics.registry.metrics());
+  });
+
+  if (customerMetrics) {
+    app.get('/telemetry-metrics', async (_req, res) => {
+      res.set('Content-Type', customerMetrics.registry.contentType);
+      res.send(await customerMetrics.scrape());
+    });
+  }
   return app;
 }
