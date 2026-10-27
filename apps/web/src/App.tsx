@@ -33,7 +33,8 @@ type ReadinessState =
   | { kind: 'error'; message: string };
 
 async function fetchReadiness(signal: AbortSignal): Promise<ReadinessReport> {
-  const res = await fetch('/health/ready', { signal });
+  // `/api/v1/status` rather than `/health/ready`: content blockers block monitoring-style paths.
+  const res = await fetch('/api/v1/status', { signal });
   // 503 still carries a report describing which dependency is down.
   if (res.status !== 200 && res.status !== 503) throw new Error(`Unexpected HTTP ${res.status}`);
   return (await res.json()) as ReadinessReport;

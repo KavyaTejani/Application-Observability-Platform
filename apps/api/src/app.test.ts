@@ -37,6 +37,21 @@ describe('health endpoints', () => {
   });
 });
 
+describe('browser status endpoint', () => {
+  it('GET /api/v1/status returns the same readiness report as /health/ready', async () => {
+    const { app } = buildTestApp({ loki: null });
+    const res = await request(app).get('/api/v1/status');
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe('degraded');
+    expect(res.body.dependencies.mongodb.status).toBe('up');
+  });
+
+  it('GET /api/v1/status returns 503 when a dependency is down', async () => {
+    const { app } = buildTestApp({ mongodb: failing('down') });
+    expect((await request(app).get('/api/v1/status')).status).toBe(503);
+  });
+});
+
 describe('error envelope', () => {
   it('returns the documented 404 shape with a request ID', async () => {
     const { app } = buildTestApp();
