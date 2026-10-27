@@ -1,0 +1,12 @@
+# Keep the build context small and free of secrets.
+**/node_modules
+**/dist
+**/coverage
+.git
+.env
+.env.*
+!.env.example
+*.md
+infra
+docs
+.claude

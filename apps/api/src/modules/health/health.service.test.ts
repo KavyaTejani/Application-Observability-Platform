@@ -31,6 +31,24 @@ describe('HealthService', () => {
     expect(JSON.stringify(report)).not.toContain('10.0.0.5');
   });
 
+  it('is degraded, not ready, when a backend is not configured', async () => {
+    const service = new HealthService(
+      { mongodb: up, redis: up, prometheus: null, loki: null },
+      500,
+    );
+    const report = await service.checkReadiness();
+    expect(report.status).toBe('degraded');
+    expect(report.dependencies.prometheus.status).toBe('not_configured');
+  });
+
+  it('is not ready when a configured dependency is down even if others are unconfigured', async () => {
+    const service = new HealthService(
+      { mongodb: down, redis: up, prometheus: null, loki: up },
+      500,
+    );
+    expect((await service.checkReadiness()).status).toBe('not_ready');
+  });
+
   it('treats a hung dependency as down after the timeout', async () => {
     const service = new HealthService({ mongodb: up, redis: up, prometheus: up, loki: hang }, 50);
     const report = await service.checkReadiness();

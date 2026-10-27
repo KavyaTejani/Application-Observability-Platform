@@ -1,6 +1,6 @@
 import { pino } from 'pino';
 import { createApp } from '../app.js';
-import { loadConfig } from '../config/index.js';
+import { loadConfig, type AppConfig } from '../config/index.js';
 import {
   HealthService,
   type DependencyName,
@@ -21,12 +21,20 @@ export const testConfig = loadConfig({
 const up: DependencyProbe = async () => undefined;
 
 /** Builds the public app with stubbed dependency probes (all up unless overridden). */
-export function buildTestApp(probes: Partial<Record<DependencyName, DependencyProbe>> = {}) {
+export function buildTestApp(
+  probes: Partial<Record<DependencyName, DependencyProbe | null>> = {},
+  configOverrides: Partial<AppConfig> = {},
+) {
   const metrics = createPlatformMetrics();
   const health = new HealthService(
     { mongodb: up, redis: up, prometheus: up, loki: up, ...probes },
     200,
   );
-  const app = createApp({ config: testConfig, logger: pino({ level: 'silent' }), health, metrics });
+  const app = createApp({
+    config: { ...testConfig, ...configOverrides },
+    logger: pino({ level: 'silent' }),
+    health,
+    metrics,
+  });
   return { app, metrics };
 }

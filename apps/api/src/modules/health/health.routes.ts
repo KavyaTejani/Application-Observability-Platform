@@ -10,10 +10,11 @@ export function healthRouter(health: HealthService): Router {
     res.json({ status: 'live', uptimeSeconds: Math.round(process.uptime()) });
   });
 
-  // Readiness: every critical dependency answered within the timeout.
+  // Readiness: every configured dependency answered within the timeout. `degraded` (some
+  // backends not configured) still serves traffic, so it returns 200 with an explicit status.
   router.get('/ready', async (_req, res) => {
     const report = await health.checkReadiness();
-    res.status(report.status === 'ready' ? 200 : 503).json(report);
+    res.status(report.status === 'not_ready' ? 503 : 200).json(report);
   });
 
   return router;

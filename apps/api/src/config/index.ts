@@ -6,6 +6,9 @@ import { z } from 'zod';
  */
 const booleanFromString = z.enum(['true', 'false']).transform((value) => value === 'true');
 
+/** An optional URL where an empty string (common in hosting dashboards) means "not set". */
+const optionalUrl = z.preprocess((value) => (value === '' ? undefined : value), z.url().optional());
+
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().int().min(1).max(65535).default(4000),
@@ -18,9 +21,14 @@ const envSchema = z.object({
 
   MONGODB_URI: z.string().min(1, 'MONGODB_URI is required'),
   REDIS_URL: z.string().min(1, 'REDIS_URL is required'),
-  PROMETHEUS_URL: z.url(),
-  LOKI_URL: z.url(),
-  OTEL_COLLECTOR_ENDPOINT: z.url().optional(),
+  // Telemetry backends are optional so the product can run where they are not deployed (for
+  // example a free hosting tier). Readiness then reports them as "not_configured".
+  PROMETHEUS_URL: optionalUrl,
+  LOKI_URL: optionalUrl,
+  OTEL_COLLECTOR_ENDPOINT: optionalUrl,
+
+  // Directory of the built web app. When set, the API also serves the UI from the same origin.
+  WEB_DIST_DIR: z.string().min(1).optional(),
 
   SESSION_SECRET: z.string().min(32, 'SESSION_SECRET must be at least 32 characters'),
   TELEMETRY_KEY_PEPPER: z.string().min(32, 'TELEMETRY_KEY_PEPPER must be at least 32 characters'),
@@ -39,9 +47,10 @@ export type AppConfig = Readonly<{
   trustProxy: boolean;
   mongoUri: string;
   redisUrl: string;
-  prometheusUrl: string;
-  lokiUrl: string;
+  prometheusUrl: string | undefined;
+  lokiUrl: string | undefined;
   otelCollectorEndpoint: string | undefined;
+  webDistDir: string | undefined;
   sessionSecret: string;
   telemetryKeyPepper: string;
   healthCheckTimeoutMs: number;
@@ -90,9 +99,10 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env): AppConfig {
     trustProxy: env.TRUST_PROXY,
     mongoUri: env.MONGODB_URI,
     redisUrl: env.REDIS_URL,
-    prometheusUrl: env.PROMETHEUS_URL.replace(/\/+$/, ''),
-    lokiUrl: env.LOKI_URL.replace(/\/+$/, ''),
+    prometheusUrl: env.PROMETHEUS_URL?.replace(/\/+$/, ''),
+    lokiUrl: env.LOKI_URL?.replace(/\/+$/, ''),
     otelCollectorEndpoint: env.OTEL_COLLECTOR_ENDPOINT,
+    webDistDir: env.WEB_DIST_DIR,
     sessionSecret: env.SESSION_SECRET,
     telemetryKeyPepper: env.TELEMETRY_KEY_PEPPER,
     healthCheckTimeoutMs: env.HEALTH_CHECK_TIMEOUT_MS,

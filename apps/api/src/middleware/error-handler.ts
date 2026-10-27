@@ -37,6 +37,13 @@ export const errorHandler: ErrorRequestHandler = (err: unknown, req, res, _next)
     return;
   }
 
+  // 404s raised by express.static for missing files.
+  if (httpErr.status === 404) {
+    const { code, message } = notFound();
+    res.status(404).json({ error: { code, message, requestId } });
+    return;
+  }
+
   req.log.error({ err }, 'Unhandled error');
   res.status(500).json({
     error: {

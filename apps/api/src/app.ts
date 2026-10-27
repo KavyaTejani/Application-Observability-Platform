@@ -6,6 +6,7 @@ import type { AppConfig } from './config/index.js';
 import { errorHandler, notFoundHandler } from './middleware/error-handler.js';
 import { generateRequestId } from './middleware/request-id.js';
 import { requestMetrics } from './middleware/request-metrics.js';
+import { webAppRouter } from './middleware/web-app.js';
 import { healthRouter } from './modules/health/health.routes.js';
 import type { HealthService } from './modules/health/health.service.js';
 import type { PlatformMetrics } from './observability/platform-metrics.js';
@@ -49,6 +50,8 @@ export function createApp({ config, logger, health, metrics }: AppDeps): Express
   app.get('/api/v1', (_req, res) => {
     res.json({ name: 'Application Observability Platform API', version: 'v1' });
   });
+
+  if (config.webDistDir) app.use(webAppRouter(config.webDistDir));
 
   app.use(notFoundHandler);
   app.use(errorHandler);

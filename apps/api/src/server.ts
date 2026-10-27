@@ -44,13 +44,20 @@ async function main(): Promise<void> {
   const logger = createLogger(config);
   const metrics = createPlatformMetrics();
   const redis = createRedis(config.redisUrl, logger);
+  const { prometheusUrl, lokiUrl } = config;
+  if (!prometheusUrl || !lokiUrl) {
+    logger.warn(
+      { prometheus: Boolean(prometheusUrl), loki: Boolean(lokiUrl) },
+      'Telemetry backend not configured; metrics/log features are unavailable in this deployment',
+    );
+  }
 
   const health = new HealthService(
     {
       mongodb: () => pingMongo(mongoose.connection),
       redis: () => redis.ping(),
-      prometheus: (signal) => pingPrometheus(config.prometheusUrl, signal),
-      loki: (signal) => pingLoki(config.lokiUrl, signal),
+      prometheus: prometheusUrl ? (signal) => pingPrometheus(prometheusUrl, signal) : null,
+      loki: lokiUrl ? (signal) => pingLoki(lokiUrl, signal) : null,
     },
     config.healthCheckTimeoutMs,
     (dependency, error) => {

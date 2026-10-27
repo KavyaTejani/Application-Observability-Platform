@@ -93,5 +93,26 @@ The API refuses to start, with a clear message, if a variable is missing or inva
 
 ## Deployment
 
-Planned: Render (free tier) for the web app + API, MongoDB Atlas, and Render Key Value. The
-telemetry backends run in the documented Docker Compose stack. Details will follow in milestone M8.
+The production [`Dockerfile`](Dockerfile) builds one image. Express serves both the API and the
+built React app from a single origin, so the session cookie stays first-party.
+
+**Hosted deployment (Render free tier):**
+
+| Component        | Where                       |
+| ---------------- | --------------------------- |
+| Web app + API    | Render Web Service (Docker) |
+| MongoDB          | MongoDB Atlas (M0)          |
+| Redis            | Render Key Value            |
+| Prometheus, Loki | Not hosted (see below)      |
+
+**Known limitation:** Prometheus and Loki need persistent disks and private services, which
+are not available on the free hosting tier. The hosted app therefore reports readiness as
+`degraded`, and metrics and log features run only in the full local Docker Compose stack
+described above. This split is intentional and stated here so that evaluators are not misled.
+
+Build and run the production image locally:
+
+```bash
+docker build -t aop-app .
+docker run --env-file .env -e NODE_ENV=production -p 4000:4000 aop-app
+```

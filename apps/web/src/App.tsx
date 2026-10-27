@@ -2,10 +2,29 @@ import { useEffect, useState } from 'react';
 
 type DependencyName = 'mongodb' | 'redis' | 'prometheus' | 'loki';
 
+type DependencyStatus = { status: 'up' | 'down'; latencyMs: number } | { status: 'not_configured' };
+
 interface ReadinessReport {
-  status: 'ready' | 'not_ready';
+  status: 'ready' | 'degraded' | 'not_ready';
   checkedAt: string;
-  dependencies: Record<DependencyName, { status: 'up' | 'down'; latencyMs: number }>;
+  dependencies: Record<DependencyName, DependencyStatus>;
+}
+
+const OVERALL_LABEL: Record<ReadinessReport['status'], string> = {
+  ready: '✔ Ready',
+  degraded: '◐ Degraded: some telemetry backends are not configured in this deployment',
+  not_ready: '✖ Not ready',
+};
+
+function describeDependency(dep: DependencyStatus): { text: string; className: string } {
+  switch (dep.status) {
+    case 'up':
+      return { text: `✔ up (${dep.latencyMs} ms)`, className: 'text-emerald-700' };
+    case 'down':
+      return { text: '✖ down', className: 'text-red-700' };
+    case 'not_configured':
+      return { text: '— not configured', className: 'text-slate-500' };
+  }
 }
 
 type ReadinessState =
@@ -59,18 +78,17 @@ export function App() {
 
         {state.kind === 'loaded' && (
           <>
-            <p className="font-medium">
-              API: {state.report.status === 'ready' ? '✔ Ready' : '✖ Not ready'}
-            </p>
+            <p className="font-medium">API: {OVERALL_LABEL[state.report.status]}</p>
             <ul className="mt-3 space-y-1 text-sm">
-              {Object.entries(state.report.dependencies).map(([name, dep]) => (
-                <li key={name} className="flex justify-between">
-                  <span>{name}</span>
-                  <span className={dep.status === 'up' ? 'text-emerald-700' : 'text-red-700'}>
-                    {dep.status === 'up' ? `✔ up (${dep.latencyMs} ms)` : '✖ down'}
-                  </span>
-                </li>
-              ))}
+              {Object.entries(state.report.dependencies).map(([name, dep]) => {
+                const { text, className } = describeDependency(dep);
+                return (
+                  <li key={name} className="flex justify-between">
+                    <span>{name}</span>
+                    <span className={className}>{text}</span>
+                  </li>
+                );
+              })}
             </ul>
           </>
         )}

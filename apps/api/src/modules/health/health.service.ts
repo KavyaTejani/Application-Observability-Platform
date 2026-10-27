@@ -5,13 +5,22 @@ export type DependencyName = 'mongodb' | 'redis' | 'prometheus' | 'loki';
 /** A probe resolves when the dependency is usable and rejects otherwise. */
 export type DependencyProbe = (signal: AbortSignal) => Promise<unknown>;
 
-export interface DependencyStatus {
-  status: 'up' | 'down';
-  latencyMs: number;
-}
+/** `null` marks a dependency that is intentionally not configured in this deployment. */
+export type DependencyProbes = Record<DependencyName, DependencyProbe | null>;
+
+export type DependencyStatus =
+  { status: 'up' | 'down'; latencyMs: number } | { status: 'not_configured' };
+
+/**
+ * - `ready`: every dependency is configured and up.
+ * - `degraded`: every configured dependency is up, but some are not configured, so the features
+ *   that need them are unavailable. Reported honestly rather than as `ready`.
+ * - `not_ready`: a configured dependency is down.
+ */
+export type ReadinessStatus = 'ready' | 'degraded' | 'not_ready';
 
 export interface ReadinessReport {
-  status: 'ready' | 'not_ready';
+  status: ReadinessStatus;
   checkedAt: string;
   dependencies: Record<DependencyName, DependencyStatus>;
 }
@@ -20,7 +29,7 @@ export type ProbeFailureListener = (name: DependencyName, error: unknown) => voi
 
 export class HealthService {
   constructor(
-    private readonly probes: Record<DependencyName, DependencyProbe>,
+    private readonly probes: DependencyProbes,
     private readonly timeoutMs: number,
     private readonly onProbeFailure: ProbeFailureListener = () => undefined,
   ) {}
@@ -32,19 +41,22 @@ export class HealthService {
       DependencyName,
       DependencyStatus
     >;
-    const allUp = results.every((result) => result.status === 'up');
-    return {
-      status: allUp ? 'ready' : 'not_ready',
-      checkedAt: new Date().toISOString(),
-      dependencies,
-    };
+
+    let status: ReadinessStatus = 'ready';
+    if (results.some((result) => result.status === 'down')) status = 'not_ready';
+    else if (results.some((result) => result.status === 'not_configured')) status = 'degraded';
+
+    return { status, checkedAt: new Date().toISOString(), dependencies };
   }
 
   private async runProbe(name: DependencyName): Promise<DependencyStatus> {
+    const probe = this.probes[name];
+    if (!probe) return { status: 'not_configured' };
+
     const controller = new AbortController();
     const started = performance.now();
     try {
-      await withTimeout(this.probes[name](controller.signal), this.timeoutMs);
+      await withTimeout(probe(controller.signal), this.timeoutMs);
       return { status: 'up', latencyMs: Math.round(performance.now() - started) };
     } catch (error) {
       controller.abort();

@@ -20,6 +20,14 @@ describe('health endpoints', () => {
     expect(res.body.status).toBe('ready');
   });
 
+  it('GET /health/ready returns 200 with status "degraded" when a backend is not configured', async () => {
+    const { app } = buildTestApp({ prometheus: null, loki: null });
+    const res = await request(app).get('/health/ready');
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe('degraded');
+    expect(res.body.dependencies.loki.status).toBe('not_configured');
+  });
+
   it('GET /health/ready returns 503 when a dependency is down', async () => {
     const { app } = buildTestApp({ redis: failing('ECONNREFUSED') });
     const res = await request(app).get('/health/ready');
