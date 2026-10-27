@@ -39,16 +39,32 @@ async function fetchReadiness(signal: AbortSignal): Promise<ReadinessReport> {
   return (await res.json()) as ReadinessReport;
 }
 
+const MAX_ATTEMPTS = 4;
+const RETRY_DELAY_MS = 3000;
+
+/** Retries transient failures, e.g. while the host is waking up or switching deploys. */
+async function fetchReadinessWithRetry(signal: AbortSignal): Promise<ReadinessReport> {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await fetchReadiness(signal);
+    } catch (error) {
+      if (signal.aborted || attempt >= MAX_ATTEMPTS) throw error;
+      await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS * attempt));
+    }
+  }
+}
+
 /**
  * Foundations milestone shell: shows live API readiness so the local stack can be verified from
  * the browser. Replaced by the authenticated application in the identity milestone.
  */
 export function App() {
   const [state, setState] = useState<ReadinessState>({ kind: 'loading' });
+  const [reloadCount, setReloadCount] = useState(0);
 
   useEffect(() => {
     const controller = new AbortController();
-    fetchReadiness(controller.signal)
+    fetchReadinessWithRetry(controller.signal)
       .then((report) => setState({ kind: 'loaded', report }))
       .catch((error: unknown) => {
         if (controller.signal.aborted) return;
@@ -58,7 +74,12 @@ export function App() {
         });
       });
     return () => controller.abort();
-  }, []);
+  }, [reloadCount]);
+
+  const retry = () => {
+    setState({ kind: 'loading' });
+    setReloadCount((count) => count + 1);
+  };
 
   return (
     <main className="mx-auto max-w-2xl px-4 py-12">
@@ -71,9 +92,19 @@ export function App() {
         {state.kind === 'loading' && <p className="text-slate-500">Checking API readiness…</p>}
 
         {state.kind === 'error' && (
-          <p className="text-red-700">
-            Could not reach the API ({state.message}). Is <code>npm run dev:api</code> running?
-          </p>
+          <div>
+            <p className="text-red-700">
+              Could not reach the API ({state.message}). The server may be starting up; this can
+              take up to a minute after a period of inactivity.
+            </p>
+            <button
+              type="button"
+              onClick={retry}
+              className="mt-3 rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-700"
+            >
+              Retry
+            </button>
+          </div>
         )}
 
         {state.kind === 'loaded' && (
