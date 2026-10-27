@@ -37,6 +37,10 @@ const envSchema = z.object({
   SESSION_IDLE_TTL_MINUTES: z.coerce.number().int().min(5).max(10_080).default(720),
   SESSION_ABSOLUTE_TTL_HOURS: z.coerce.number().int().min(1).max(720).default(168),
 
+  // How long a verified ingestion key is cached. Bounds how long a key revoked through another
+  // API instance keeps working (PRD KEY-003). The revoking instance invalidates immediately.
+  API_KEY_CACHE_TTL_SECONDS: z.coerce.number().int().min(0).max(300).default(30),
+
   HEALTH_CHECK_TIMEOUT_MS: z.coerce.number().int().min(100).max(10_000).default(2000),
 });
 
@@ -58,6 +62,7 @@ export type AppConfig = Readonly<{
   sessionSecret: string;
   telemetryKeyPepper: string;
   healthCheckTimeoutMs: number;
+  apiKeyCacheTtlMs: number;
   session: Readonly<{ idleTtlMs: number; absoluteTtlMs: number; cookieName: string }>;
   /** Origins allowed to send state-changing, cookie-authenticated requests (CSRF defence). */
   allowedOrigins: readonly string[];
@@ -113,6 +118,7 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env): AppConfig {
     sessionSecret: env.SESSION_SECRET,
     telemetryKeyPepper: env.TELEMETRY_KEY_PEPPER,
     healthCheckTimeoutMs: env.HEALTH_CHECK_TIMEOUT_MS,
+    apiKeyCacheTtlMs: env.API_KEY_CACHE_TTL_SECONDS * 1000,
     session: Object.freeze({
       idleTtlMs: env.SESSION_IDLE_TTL_MINUTES * 60_000,
       absoluteTtlMs: env.SESSION_ABSOLUTE_TTL_HOURS * 3_600_000,

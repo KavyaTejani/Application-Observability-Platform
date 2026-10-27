@@ -1,7 +1,8 @@
-import { OBJECT_ID_PATTERN } from '@aop/validation';
+import { OBJECT_ID_PATTERN, type Environment } from '@aop/validation';
 import { Types } from 'mongoose';
 import { AppError, notFound } from '../../lib/errors.js';
 import { MembershipModel, type Role } from '../organizations/organization.model.js';
+import { ProjectModel } from '../projects/project.model.js';
 import { can, type Action } from './policy.js';
 
 /**
@@ -39,6 +40,39 @@ export async function resolveOrgScope(
   if (!membership) throw notFound('Organization not found.');
 
   return Object.freeze({ organizationId, userId, role: membership.role });
+}
+
+/** A TenantScope narrowed to one project that belongs to the scope's organization. */
+export interface ProjectScope extends TenantScope {
+  readonly projectId: Types.ObjectId;
+  readonly environment: Environment;
+}
+
+/**
+ * Resolves the caller's scope for a project. The organization is read from the project record
+ * (never from the client), and then membership in that organization is verified. Missing,
+ * deleted, and foreign projects all return the same 404.
+ */
+export async function resolveProjectScope(
+  userId: Types.ObjectId,
+  projectIdParam: unknown,
+): Promise<ProjectScope> {
+  const projectId = parseObjectId(projectIdParam);
+  if (!projectId) throw notFound('Project not found.');
+
+  const project = await ProjectModel.findOne(
+    { _id: projectId, status: 'active' },
+    { organizationId: 1, environment: 1 },
+  ).lean();
+  if (!project) throw notFound('Project not found.');
+
+  let scope: TenantScope;
+  try {
+    scope = await resolveOrgScope(userId, project.organizationId.toHexString());
+  } catch {
+    throw notFound('Project not found.');
+  }
+  return Object.freeze({ ...scope, projectId, environment: project.environment });
 }
 
 /** Throws 403 when the scope's role does not permit `action`. */

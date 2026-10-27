@@ -28,6 +28,36 @@ export interface Member {
   joinedAt: string;
 }
 
+export type Environment = 'development' | 'staging' | 'production';
+
+export interface Project {
+  id: string;
+  organizationId: string;
+  name: string;
+  slug: string;
+  environment: Environment;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ApiKeySummary {
+  keyId: string;
+  name: string;
+  prefix: string;
+  scopes: string[];
+  state: 'active' | 'expiring' | 'revoked';
+  createdAt: string;
+  lastUsedAt: string | null;
+  revokedAt: string | null;
+  expiresAt: string | null;
+  replacedBy: string | null;
+}
+
+export interface CreatedApiKey {
+  key: ApiKeySummary;
+  secret: string;
+}
+
 export interface Me {
   user: User;
   organizations: OrganizationSummary[];

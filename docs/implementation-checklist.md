@@ -59,10 +59,30 @@ error. Production image verified: `__Host-aop_sid; HttpOnly; Secure; SameSite=La
 **Deferred (by design):** invitations, email verification, password reset (P1). Membership
 for the member role comes from the seed script for now.
 
-## M3 — Projects and keys
+## M3 — Projects and keys ✅
 
-- [ ] Project CRUD; key create/list/revoke/rotate with one-time reveal and HMAC-SHA-256 storage
-- [ ] Key-auth middleware for ingestion
+- [x] Project create / list / get / rename / soft-delete; environment fixed at creation
+      (ORG-004, ORG-005)
+- [x] Plan `maxProjects` enforced with an atomic conditional `$inc` (8 concurrent creates →
+      exactly 3 succeed). Organizations that predate the counter are handled.
+- [x] Key generation with CSPRNG; full key shown once (`Cache-Control: no-store`) (KEY-001)
+- [x] Only HMAC-SHA-256(pepper, secret) + public `keyId`/prefix stored; constant-time compare
+      (KEY-002)
+- [x] Revoke (idempotent) and rotate with optional grace ≤ 24 h. Same-process cache
+      invalidation, plus a documented 30 s TTL across instances, covered by a two-instance test
+      (KEY-003)
+- [x] Keys scoped to one project, `telemetry:write` only; they cannot call account APIs; browser
+      sessions cannot use ingestion routes (KEY-004, ING-002)
+- [x] Key-auth middleware + `POST /v1/telemetry/test` (§12.4, SDK-007 server side)
+- [x] Project deletion revokes all its keys immediately (§16)
+- [x] Isolation tests: cross-tenant project read/rename/delete, key list/create/revoke/rotate,
+      foreign keyId under own project, forged `X-Scope-OrgID`/body tenant fields (§14.2 items 1, 4)
+- [x] Web: projects list/create, project page with keys (one-time reveal + copy, revoke, rotate
+      with grace), rename, delete, SDK setup snippet
+
+**Verification (2026-10-27):** lint, type-check, and build clean; `npm test` 120/120 passed
+(15 files). Live dev-server run: create project → create key → `/v1/telemetry/test` 200 →
+revoke → 401 → member create-key 403 → delete 204. The key never appears in the server logs.
 
 ## M4 — SDK and ingestion
 

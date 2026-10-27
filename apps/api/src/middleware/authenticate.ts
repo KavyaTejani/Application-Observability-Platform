@@ -1,6 +1,11 @@
 import type { Request, RequestHandler } from 'express';
 import { AppError } from '../lib/errors.js';
-import { resolveOrgScope, type TenantScope } from '../modules/authz/tenant-scope.js';
+import {
+  resolveOrgScope,
+  resolveProjectScope,
+  type ProjectScope,
+  type TenantScope,
+} from '../modules/authz/tenant-scope.js';
 import type { SessionService } from '../modules/auth/session.service.js';
 
 const unauthenticated = () => new AppError(401, 'UNAUTHENTICATED', 'Sign in to continue.');
@@ -49,3 +54,21 @@ export const requireOrgScope: RequestHandler = async (req, _res, next) => {
   req.scope = await resolveOrgScope(authOf(req).userId, req.params.organizationId);
   next();
 };
+
+/**
+ * Attaches a ProjectScope for the `:projectId` route parameter. The project's organization is
+ * taken from the database, and then the caller's membership in it is verified.
+ */
+export const requireProjectScope: RequestHandler = async (req, _res, next) => {
+  req.scope = await resolveProjectScope(authOf(req).userId, req.params.projectId);
+  next();
+};
+
+/** The verified project scope for a handler behind `requireProjectScope`. */
+export function projectScopeOf(req: Request): ProjectScope {
+  const scope = scopeOf(req);
+  if (!('projectId' in scope)) {
+    throw new Error('Project scope missing: route is not behind requireProjectScope');
+  }
+  return scope as ProjectScope;
+}

@@ -3,6 +3,8 @@ import { createBrowserRouter, Link, RouterProvider } from 'react-router';
 import { AppLayout } from './pages/AppLayout';
 import { LoginPage } from './pages/LoginPage';
 import { OverviewPage } from './pages/OverviewPage';
+import { ProjectPage } from './pages/ProjectPage';
+import { ProjectsPage } from './pages/ProjectsPage';
 import { RegisterPage } from './pages/RegisterPage';
 import { StatusPage } from './pages/StatusPage';
 import { RedirectIfAuthenticated, RequireAuth } from './routes/guards';
@@ -39,7 +41,11 @@ const router = createBrowserRouter([
       {
         path: '/orgs/:organizationId',
         element: <AppLayout />,
-        children: [{ index: true, element: <OverviewPage /> }],
+        children: [
+          { index: true, element: <OverviewPage /> },
+          { path: 'projects', element: <ProjectsPage /> },
+          { path: 'projects/:projectId', element: <ProjectPage /> },
+        ],
       },
     ],
   },

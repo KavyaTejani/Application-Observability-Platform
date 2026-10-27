@@ -8,11 +8,10 @@ import { createRedis } from './infra/redis.js';
 import { createInternalApp } from './internal-app.js';
 import { createLogger } from './lib/logger.js';
 import { RedisRateLimiter } from './lib/rate-limiter.js';
-import { AuthService } from './modules/auth/auth.service.js';
-import { SessionService } from './modules/auth/session.service.js';
 import { HealthService } from './modules/health/health.service.js';
 import { ensureDefaultPlan } from './modules/plans/plan.service.js';
 import { createPlatformMetrics } from './observability/platform-metrics.js';
+import { createServices } from './services.js';
 
 function loadConfigOrExit() {
   try {
@@ -70,19 +69,8 @@ async function main(): Promise<void> {
     },
   );
 
-  const app = createApp({
-    config,
-    logger,
-    health,
-    metrics,
-    auth: new AuthService(logger),
-    sessions: new SessionService({
-      secret: config.sessionSecret,
-      idleTtlMs: config.session.idleTtlMs,
-      absoluteTtlMs: config.session.absoluteTtlMs,
-    }),
-    limiter: new RedisRateLimiter(redis),
-  });
+  const services = createServices(config, logger, new RedisRateLimiter(redis));
+  const app = createApp({ config, logger, health, metrics, ...services });
   const internalApp = createInternalApp(metrics);
 
   const server: Server = app.listen(config.port, () =>

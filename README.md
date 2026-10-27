@@ -4,8 +4,8 @@ A developer-facing SaaS for monitoring Node.js applications: collect request met
 structured logs with a TypeScript SDK, explore them in dashboards and a log search, and get
 alerted (with deduplicated incidents and webhooks) when error rate or latency crosses a threshold.
 
-> **Status:** under active development. Milestones **M1 (Foundations)** and **M2 (Identity and
-> tenancy)** are complete. See
+> **Status:** under active development. Milestones **M1 (Foundations)**, **M2 (Identity and
+> tenancy)**, and **M3 (Projects and keys)** are complete. See
 > [`docs/implementation-checklist.md`](docs/implementation-checklist.md) for verified progress.
 > Features below are listed only once they work.
 
@@ -30,6 +30,14 @@ time window.
   get the **member** role. Every organization route verifies membership on the server.
 - **Security controls:** Argon2id password hashing, CSRF origin checks on state-changing
   requests, rate-limited sign-up and sign-in, and one generic error for any failed sign-in.
+- **Projects:** owners create projects (`development`, `staging`, or `production`), rename
+  them, and delete them. The plan's project limit is enforced atomically, so concurrent requests
+  cannot exceed it.
+- **Ingestion API keys:** each key is shown exactly once and stored only as an HMAC-SHA-256 hash.
+  Keys can be revoked (effective immediately) or rotated, with an optional grace period of up to
+  24 hours. Deleting a project revokes all of its keys.
+- **Connection check:** `POST /v1/telemetry/test` with `Authorization: Bearer <key>` confirms a
+  key works and reports which project it writes to.
 - **System status page** showing live readiness of every backend.
 
 ## Tech stack
@@ -112,6 +120,12 @@ The API refuses to start, with a clear message, if a variable is missing or inva
 | `GET /api/v1/organizations`  | Organizations the caller belongs to                        |
 | `GET /api/v1/organizations/:organizationId`         | Organization detail (members only) |
 | `GET /api/v1/organizations/:organizationId/members` | Member list (members only)         |
+| `GET, POST /api/v1/organizations/:organizationId/projects` | List (members) / create (owners) projects |
+| `GET, PATCH, DELETE /api/v1/projects/:projectId` | Read (members) / rename, delete (owners) |
+| `GET, POST /api/v1/projects/:projectId/keys` | List key metadata (members) / create a key (owners) |
+| `POST /api/v1/projects/:projectId/keys/:keyId/revoke` | Revoke a key (owners)          |
+| `POST /api/v1/projects/:projectId/keys/:keyId/rotate` | Rotate a key, optional `gracePeriodHours` (owners) |
+| `POST /v1/telemetry/test`    | Verify an ingestion key (`Authorization: Bearer <key>`)   |
 
 All `/api/v1` errors use one envelope: `{ "error": { "code", "message", "requestId", "details" } }`.
 State-changing requests must come from the app's own origin (CSRF protection).

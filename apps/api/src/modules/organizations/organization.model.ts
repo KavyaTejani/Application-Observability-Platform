@@ -8,6 +8,8 @@ export interface OrganizationDoc {
   planId: Types.ObjectId;
   /** Deployment-wide in the MVP and shown read-only. `metricsDays` is informational. */
   retention: { metricsDays: number; logsDays: number; tracesDays: number };
+  /** Active projects. Maintained with conditional $inc so the plan limit is atomic. */
+  projectCount: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -23,6 +25,7 @@ const organizationSchema = new Schema<OrganizationDoc>(
       logsDays: { type: Number, default: 7 },
       tracesDays: { type: Number, default: 3 },
     },
+    projectCount: { type: Number, default: 0, min: 0 },
   },
   { timestamps: true },
 );

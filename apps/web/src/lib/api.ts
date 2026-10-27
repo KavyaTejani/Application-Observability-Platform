@@ -59,6 +59,10 @@ export async function api<T>(
   return body;
 }
 
+/** True when the error is shown under form fields, so no banner is needed. */
+export const hasFieldErrors = (error: unknown): boolean =>
+  error instanceof ApiError && Object.keys(error.fieldErrors).length > 0;
+
 /** Human-readable message for any thrown value. */
 export function errorMessage(error: unknown): string {
   if (error instanceof ApiError) {

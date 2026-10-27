@@ -4,34 +4,32 @@ import helmet from 'helmet';
 import { pinoHttp } from 'pino-http';
 import type { Logger } from 'pino';
 import type { AppConfig } from './config/index.js';
-import type { RateLimiter } from './lib/rate-limiter.js';
 import { sessionAuth } from './middleware/authenticate.js';
 import { errorHandler, notFoundHandler } from './middleware/error-handler.js';
 import { originCheck } from './middleware/origin-check.js';
 import { generateRequestId } from './middleware/request-id.js';
 import { requestMetrics } from './middleware/request-metrics.js';
 import { webAppRouter } from './middleware/web-app.js';
+import { apiKeyRouter } from './modules/api-keys/api-key.routes.js';
 import { authRouter } from './modules/auth/auth.routes.js';
-import type { AuthService } from './modules/auth/auth.service.js';
-import type { SessionService } from './modules/auth/session.service.js';
 import { healthRouter, statusRouter } from './modules/health/health.routes.js';
 import type { HealthService } from './modules/health/health.service.js';
+import { ingestionRouter } from './modules/ingestion/ingestion.routes.js';
 import { organizationRouter } from './modules/organizations/organization.routes.js';
+import { organizationProjectsRouter, projectRouter } from './modules/projects/project.routes.js';
 import type { PlatformMetrics } from './observability/platform-metrics.js';
+import type { Services } from './services.js';
 
-export interface AppDeps {
+export interface AppDeps extends Services {
   config: AppConfig;
   logger: Logger;
   health: HealthService;
   metrics: PlatformMetrics;
-  auth: AuthService;
-  sessions: SessionService;
-  limiter: RateLimiter;
 }
 
 /** Public HTTP application: product API, telemetry ingress, and health endpoints. */
 export function createApp(deps: AppDeps): Express {
-  const { config, logger, health, metrics, sessions } = deps;
+  const { config, logger, health, metrics, sessions, projects, apiKeys, keyAuth, limiter } = deps;
   const app = express();
   app.disable('x-powered-by');
   app.set('trust proxy', config.trustProxy ? 1 : false);
@@ -69,8 +67,14 @@ export function createApp(deps: AppDeps): Express {
   });
   api.use('/status', statusRouter(health));
   api.use('/auth', authRouter(deps));
+  api.use('/organizations/:organizationId/projects', organizationProjectsRouter(projects));
   api.use('/organizations', organizationRouter());
+  api.use('/projects/:projectId/keys', apiKeyRouter(apiKeys));
+  api.use('/projects', projectRouter(projects));
   app.use('/api/v1', api);
+
+  // Telemetry ingress: project-key authenticated. No cookies, so no CSRF surface.
+  app.use('/v1/telemetry', ingestionRouter(keyAuth, limiter));
 
   if (config.webDistDir) app.use(webAppRouter(config.webDistDir));
 

@@ -71,6 +71,11 @@ export function AppLayout() {
               </NavLink>
             </li>
             <li>
+              <NavLink to={`/orgs/${current.id}/projects`} className={navItem}>
+                Projects
+              </NavLink>
+            </li>
+            <li>
               <NavLink to="/status" className={navItem}>
                 System status
               </NavLink>

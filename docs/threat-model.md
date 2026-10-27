@@ -11,7 +11,8 @@ today**. Planned controls are marked _(planned, Mx)_.
 ```
 
 1. **Browser → API.** Untrusted. Identity comes only from the server-side session.
-2. **SDK → ingestion gateway.** Untrusted. Identity comes only from the project API key _(planned, M3/M4)_.
+2. **SDK → ingestion gateway.** Untrusted. Identity comes only from the project API key
+   (key authentication done in M3; telemetry ingestion arrives in M4).
 3. **API → backends.** Trusted private network. Backends are never exposed publicly. Dev ports
    bind to `127.0.0.1`, and the production deployment publishes none.
 
@@ -38,6 +39,13 @@ secrets _(M6)_, and server secrets (`SESSION_SECRET`, `TELEMETRY_KEY_PEPPER`).
 | Secrets in logs | Pino redaction of auth headers, cookies, and password/key fields. Request logs record only method, URL, ID, and status. | `lib/logger.ts`, `app.ts` |
 | Information leakage in errors | A generic `500` with a request ID. Readiness reports up/down but never error text. | `error-handler.ts`, `health.service.ts` |
 | Misconfiguration | Startup validation of every variable. Placeholder secrets are rejected in production. | `config/index.ts` |
+| Ingestion-key database leak | Only `HMAC-SHA-256(TELEMETRY_KEY_PEPPER, secret)` is stored; the pepper lives outside the database. A leaked `apiKeys` collection cannot authenticate. | `api-keys/api-key.crypto.ts` |
+| Key brute force | 256-bit secrets; constant-time comparison; unknown key IDs still run a verification (no timing oracle) | `key-authenticator.ts` |
+| Key exposure in transit or logs | The key is shown once, with `Cache-Control: no-store`. It is sent only in `Authorization`, which is never logged (verified by grepping the logs). | `api-key.routes.ts`, `app.ts` |
+| Revoked key reuse | The revoking instance evicts its cache entry immediately. Other instances re-read within `API_KEY_CACHE_TTL_SECONDS` (30 s). Project deletion revokes every key. | `key-authenticator.ts`, `project.service.ts` |
+| Cross-tenant writes through a key | The ingestion principal (org, project, environment) comes only from the key record. Body and header tenant fields are ignored (tested with a forged `X-Scope-OrgID`). | `key-authenticator.ts` |
+| Key misuse beyond ingestion | Keys carry only `telemetry:write`. Ingestion routes accept no cookies, and product routes accept no keys. | `ingestion.routes.ts`, `app.ts` |
+| Plan-limit bypass by racing | Project slots are reserved with a conditional atomic `$inc`, and released if the insert fails | `project.service.ts` |
 
 ## Known limitations (accepted for the MVP)
 
@@ -54,9 +62,14 @@ secrets _(M6)_, and server secrets (`SESSION_SECRET`, `TELEMETRY_KEY_PEPPER`).
    when (and only when) the app runs behind exactly one trusted proxy, as on Render.
 5. **Shared IPs.** Per-IP limits can affect users behind one NAT, which is acceptable at this
    scale.
+6. **Revocation propagation window.** With several API instances, a revoked key can keep working
+   on other instances for up to `API_KEY_CACHE_TTL_SECONDS` (default 30 s). Setting it to `0`
+   removes the window at the cost of one database read per ingestion request.
+7. **Rotating the pepper** invalidates every ingestion key. There is no dual-pepper rollover.
+8. **Soft-deleted projects** keep their telemetry until backend retention removes it. Deletion is
+   not an instant purge.
 
 ## Planned
 
-- Ingestion key hashing (HMAC-SHA-256 + pepper), revocation, and rotation _(M3)_
 - Telemetry tenant isolation in Prometheus/Loki, with server-generated queries only _(M4/M5)_
 - Webhook SSRF protection _(M6)_; quotas _(M7)_; the full isolation suite _(M8)_
