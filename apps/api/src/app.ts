@@ -29,7 +29,8 @@ export interface AppDeps extends Services {
 
 /** Public HTTP application: product API, telemetry ingress, and health endpoints. */
 export function createApp(deps: AppDeps): Express {
-  const { config, logger, health, metrics, sessions, projects, apiKeys, keyAuth, limiter } = deps;
+  const { config, logger, health, metrics, sessions, projects, apiKeys, keyAuth, limiter, ingest } =
+    deps;
   const app = express();
   app.disable('x-powered-by');
   app.set('trust proxy', config.trustProxy ? 1 : false);
@@ -74,7 +75,7 @@ export function createApp(deps: AppDeps): Express {
   app.use('/api/v1', api);
 
   // Telemetry ingress: project-key authenticated. No cookies, so no CSRF surface.
-  app.use('/v1/telemetry', ingestionRouter(keyAuth, limiter));
+  app.use('/v1/telemetry', ingestionRouter({ keyAuth, limiter, ingest, metrics }));
 
   if (config.webDistDir) app.use(webAppRouter(config.webDistDir));
 

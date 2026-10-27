@@ -5,13 +5,17 @@
 #   docker run --env-file .env -e NODE_ENV=production -p 4000:4000 aop-app
 
 # ---- Build stage: install all dependencies, compile packages and the API, bundle the web app --
+# Every workspace manifest is copied so `npm ci` matches the lockfile; only the API, the
+# validation package, and the web build end up in the runtime image.
 FROM node:24-slim AS build
 WORKDIR /app
 
 COPY package.json package-lock.json tsconfig.base.json ./
 COPY packages/validation/package.json packages/validation/
+COPY packages/node-sdk/package.json packages/node-sdk/
 COPY apps/api/package.json apps/api/
 COPY apps/web/package.json apps/web/
+COPY apps/demo-node-service/package.json apps/demo-node-service/
 RUN npm ci
 
 COPY packages packages
@@ -31,8 +35,10 @@ WORKDIR /app
 
 COPY package.json package-lock.json ./
 COPY packages/validation/package.json packages/validation/
+COPY packages/node-sdk/package.json packages/node-sdk/
 COPY apps/api/package.json apps/api/
 COPY apps/web/package.json apps/web/
+COPY apps/demo-node-service/package.json apps/demo-node-service/
 RUN npm ci --omit=dev -w @aop/api -w @aop/validation --include-workspace-root=false \
  && npm cache clean --force
 

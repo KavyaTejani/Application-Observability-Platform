@@ -45,6 +45,12 @@ secrets _(M6)_, and server secrets (`SESSION_SECRET`, `TELEMETRY_KEY_PEPPER`).
 | Revoked key reuse | The revoking instance evicts its cache entry immediately. Other instances re-read within `API_KEY_CACHE_TTL_SECONDS` (30 s). Project deletion revokes every key. | `key-authenticator.ts`, `project.service.ts` |
 | Cross-tenant writes through a key | The ingestion principal (org, project, environment) comes only from the key record. Body and header tenant fields are ignored (tested with a forged `X-Scope-OrgID`). | `key-authenticator.ts` |
 | Key misuse beyond ingestion | Keys carry only `telemetry:write`. Ingestion routes accept no cookies, and product routes accept no keys. | `ingestion.routes.ts`, `app.ts` |
+| Writing into another tenant's telemetry | The Loki `X-Scope-OrgID` and the Prometheus `organization_id`/`project_id` labels are set by the gateway from the key. Client tenant fields and headers are ignored (tested against real Loki). | `telemetry/ingest.service.ts`, `loki-writer.ts` |
+| Reading another tenant's logs at the storage layer | Loki runs with `auth_enabled: true`. A different tenant ID sees nothing (real-Loki test), and requests without a tenant are refused (`401`). | `infra/loki/loki.yaml`, `loki.integration.test.ts` |
+| Cardinality / memory DoS on Prometheus | Route and service caps per project (`__other__`); ID-like path segments normalized; bounded label alphabets; 500 records and 1 MiB per batch; per-key rate limit | `customer-metrics.ts`, `normalize.ts` |
+| Secrets stored in telemetry | Keys, Bearer/Basic credentials, and `password=`-style pairs are redacted from messages. Secret-named attributes are replaced with `[REDACTED]`. | `telemetry/redact.ts` |
+| False acknowledgement / double counting | Logs are acknowledged only after Loki confirms. On failure nothing from the batch is recorded, so SDK retries are safe. | `ingest.service.ts` |
+| SDK harming the host app | Bounded buffer and retries; errors go to `onError`, never thrown into handlers; the timer is `unref()`'d; the key is a private field | `packages/node-sdk/src/client.ts` |
 | Plan-limit bypass by racing | Project slots are reserved with a conditional atomic `$inc`, and released if the insert fails | `project.service.ts` |
 
 ## Known limitations (accepted for the MVP)
@@ -69,7 +75,12 @@ secrets _(M6)_, and server secrets (`SESSION_SECRET`, `TELEMETRY_KEY_PEPPER`).
 8. **Soft-deleted projects** keep their telemetry until backend retention removes it. Deletion is
    not an instant purge.
 
+9. **Redaction is pattern-based.** A secret in an unrecognized format inside a free-text message
+   can still be stored. Applications should not log secrets in the first place.
+10. **The internal scrape port (9464) has no authentication.** It relies on network isolation:
+   it is never published in production, and Prometheus reaches it over the private network only.
+
 ## Planned
 
-- Telemetry tenant isolation in Prometheus/Loki, with server-generated queries only _(M4/M5)_
+- Telemetry *query* isolation, with server-generated PromQL/LogQL only _(M5)_
 - Webhook SSRF protection _(M6)_; quotas _(M7)_; the full isolation suite _(M8)_

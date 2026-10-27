@@ -69,9 +69,14 @@ async function main(): Promise<void> {
     },
   );
 
-  const services = createServices(config, logger, new RedisRateLimiter(redis));
+  const services = createServices({
+    config,
+    logger,
+    limiter: new RedisRateLimiter(redis),
+    platformMetrics: metrics,
+  });
   const app = createApp({ config, logger, health, metrics, ...services });
-  const internalApp = createInternalApp(metrics);
+  const internalApp = createInternalApp(metrics, services.customerMetrics.registry);
 
   const server: Server = app.listen(config.port, () =>
     logger.info({ port: config.port, env: config.env }, 'API listening'),

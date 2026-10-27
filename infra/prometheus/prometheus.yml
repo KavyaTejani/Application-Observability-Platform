@@ -15,6 +15,15 @@ scrape_configs:
     static_configs:
       - targets: ['host.docker.internal:9464']
 
+  # Customer request metrics aggregated by the ingestion gateway (PRD ING-012). Tenant labels
+  # (organization_id, project_id) are set by the gateway from the verified API key; honor_labels
+  # keeps them exactly as exported.
+  - job_name: aop-telemetry
+    metrics_path: /telemetry-metrics
+    honor_labels: true
+    static_configs:
+      - targets: ['host.docker.internal:9464']
+
   - job_name: prometheus
     static_configs:
       - targets: ['localhost:9090']

@@ -7,6 +7,7 @@ import {
   type DependencyName,
   type DependencyProbe,
 } from '../modules/health/health.service.js';
+import type { LogWriter } from '../modules/telemetry/loki-writer.js';
 import { createPlatformMetrics } from '../observability/platform-metrics.js';
 import { createServices } from '../services.js';
 
@@ -40,6 +41,8 @@ export interface TestAppOptions {
   limiter?: RateLimiter;
   /** Injectable clock for expiry tests. */
   now?: () => Date;
+  /** Log backend for ingestion tests (a fake, or a real LokiWriter). Defaults to none. */
+  logWriter?: LogWriter | null;
 }
 
 /** Builds the public app with stubbed dependency probes (all up unless overridden). */
@@ -51,12 +54,15 @@ export function buildTestApp(options: TestAppOptions = {}) {
     { mongodb: up, redis: up, prometheus: up, loki: up, ...options.probes },
     200,
   );
-  const services = createServices(
+  const services = createServices({
     config,
     logger,
-    options.limiter ?? new MemoryRateLimiter(),
-    options.now,
-  );
+    limiter: options.limiter ?? new MemoryRateLimiter(),
+    platformMetrics: metrics,
+    // Tests never reach a real Loki unless they pass a writer explicitly.
+    logWriter: options.logWriter ?? null,
+    now: options.now,
+  });
   const app = createApp({ config, logger, health, metrics, ...services });
   return { app, metrics, config, ...services };
 }

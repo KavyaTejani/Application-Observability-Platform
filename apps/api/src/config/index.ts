@@ -41,6 +41,12 @@ const envSchema = z.object({
   // API instance keeps working (PRD KEY-003). The revoking instance invalidates immediately.
   API_KEY_CACHE_TTL_SECONDS: z.coerce.number().int().min(0).max(300).default(30),
 
+  // Per-project caps on distinct metric label values (PRD ING-014); extra values become __other__.
+  MAX_ROUTES_PER_PROJECT: z.coerce.number().int().min(1).max(1000).default(100),
+  MAX_SERVICES_PER_PROJECT: z.coerce.number().int().min(1).max(200).default(20),
+  // Deadline for every call to Loki/Prometheus.
+  BACKEND_TIMEOUT_MS: z.coerce.number().int().min(100).max(30_000).default(5000),
+
   HEALTH_CHECK_TIMEOUT_MS: z.coerce.number().int().min(100).max(10_000).default(2000),
 });
 
@@ -63,6 +69,8 @@ export type AppConfig = Readonly<{
   telemetryKeyPepper: string;
   healthCheckTimeoutMs: number;
   apiKeyCacheTtlMs: number;
+  cardinality: Readonly<{ maxRoutesPerProject: number; maxServicesPerProject: number }>;
+  backendTimeoutMs: number;
   session: Readonly<{ idleTtlMs: number; absoluteTtlMs: number; cookieName: string }>;
   /** Origins allowed to send state-changing, cookie-authenticated requests (CSRF defence). */
   allowedOrigins: readonly string[];
@@ -119,6 +127,11 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env): AppConfig {
     telemetryKeyPepper: env.TELEMETRY_KEY_PEPPER,
     healthCheckTimeoutMs: env.HEALTH_CHECK_TIMEOUT_MS,
     apiKeyCacheTtlMs: env.API_KEY_CACHE_TTL_SECONDS * 1000,
+    cardinality: Object.freeze({
+      maxRoutesPerProject: env.MAX_ROUTES_PER_PROJECT,
+      maxServicesPerProject: env.MAX_SERVICES_PER_PROJECT,
+    }),
+    backendTimeoutMs: env.BACKEND_TIMEOUT_MS,
     session: Object.freeze({
       idleTtlMs: env.SESSION_IDLE_TTL_MINUTES * 60_000,
       absoluteTtlMs: env.SESSION_ABSOLUTE_TTL_HOURS * 3_600_000,

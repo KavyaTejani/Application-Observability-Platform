@@ -4,8 +4,8 @@ A developer-facing SaaS for monitoring Node.js applications: collect request met
 structured logs with a TypeScript SDK, explore them in dashboards and a log search, and get
 alerted (with deduplicated incidents and webhooks) when error rate or latency crosses a threshold.
 
-> **Status:** under active development. Milestones **M1 (Foundations)**, **M2 (Identity and
-> tenancy)**, and **M3 (Projects and keys)** are complete. See
+> **Status:** under active development. Milestones **M1–M4** (foundations, identity and tenancy, projects and keys, SDK
+> and ingestion) are complete. See
 > [`docs/implementation-checklist.md`](docs/implementation-checklist.md) for verified progress.
 > Features below are listed only once they work.
 
@@ -38,6 +38,16 @@ time window.
   24 hours. Deleting a project revokes all of its keys.
 - **Connection check:** `POST /v1/telemetry/test` with `Authorization: Bearer <key>` confirms a
   key works and reports which project it writes to.
+- **Node.js SDK** ([`packages/node-sdk`](packages/node-sdk/README.md)): Express middleware
+  that records request rate, latency, and status per route template; a structured logger
+  correlated by request ID; and bounded batching with retries, `flush()`, `shutdown()`, and
+  `testConnection()`.
+- **Telemetry ingestion** (`POST /v1/telemetry/batch`, [contract](docs/ingestion-api.md)): batches
+  are key-authenticated, validated, and size-limited. Each record is accepted or rejected with an
+  exact count. Metrics go to Prometheus and logs to Loki, both tenant-scoped by the server. Secrets
+  are redacted, and route and service cardinality is capped.
+- **Demo service** ([`apps/demo-node-service`](apps/demo-node-service)): an instrumented store API
+  plus a traffic generator for realistic demo data.
 - **System status page** showing live readiness of every backend.
 
 ## Tech stack
@@ -60,6 +70,8 @@ time window.
 apps/api      Express control plane, telemetry gateway, health and internal metrics
 apps/web      React web application
 packages/validation   Zod schemas shared by the API and the web forms
+packages/node-sdk     TypeScript SDK for instrumenting Node.js services
+apps/demo-node-service  Sample Express service instrumented with the SDK
 infra/        Docker Compose and Prometheus / Loki / OTel Collector configuration
 docs/         Architecture, checklist, and (later) API docs, threat model, reports
 ```
@@ -99,6 +111,16 @@ Open <http://localhost:5173> and create an account. System status is at `/status
 
 Backend ports are bound to `127.0.0.1` only, for development. They are never reachable from
 other machines.
+
+### Send real telemetry from the demo service
+
+1. In the web app, create a project (environment `development`) and a key, then copy it.
+2. `cp apps/demo-node-service/.env.example apps/demo-node-service/.env` and paste the key into
+   `AOP_API_KEY`.
+3. Run `npm run start -w @aop/demo-node-service`. It prints the project it connected to.
+4. Generate traffic with `npm run traffic -w @aop/demo-node-service` (about 5 req/s for 60 s).
+5. Metrics reach Prometheus within one 15 s scrape, and logs reach Loki immediately. The
+   dashboards and log search are built in milestone M5.
 
 ## Environment variables
 

@@ -84,11 +84,46 @@ for the member role comes from the seed script for now.
 (15 files). Live dev-server run: create project → create key → `/v1/telemetry/test` 200 →
 revoke → 401 → member create-key 403 → delete 204. The key never appears in the server logs.
 
-## M4 — SDK and ingestion
+## M4 — SDK and ingestion ✅
 
-- [ ] `packages/node-sdk` (Express middleware, logger, batching, retries, flush/shutdown)
-- [ ] Demo service; versioned ingestion API with limits/validation; metrics → Prometheus,
-      logs → Loki; accurate accepted/rejected counts
+- [x] `packages/node-sdk`, no runtime deps (SDK-001, SDK-002)
+  - [x] Express middleware: count, duration, status, route template, request ID; request ID never
+        a label (SDK-003)
+  - [x] Structured logger correlated via AsyncLocalStorage; bounded attributes (SDK-004)
+  - [x] Time/size flush; bounded buffer (drop + count); bounded retries, exponential backoff + full
+        jitter, `Retry-After`; permanent failures not retried (SDK-005)
+  - [x] `flush()` and `shutdown(timeout)`; demo calls shutdown on SIGINT/SIGTERM (SDK-006)
+  - [x] `testConnection()`; key in a private field, never in errors, debug output, or inspect (SDK-007)
+- [x] `apps/demo-node-service` (store API with configurable error rate and latency) + traffic generator
+- [x] `POST /v1/telemetry/batch`, schema v1, documented in `docs/ingestion-api.md` (ING-001)
+- [x] Key-only auth; tenant from the key; body/header tenant fields ignored (ING-002, ING-003)
+- [x] Validation of envelope and per record; 500 records / 1 MiB → `413`; timestamp window
+      24 h / +5 min (ING-004, ING-005, ING-012)
+- [x] Per-key request rate limit (ING-006, partial: daily quota is M7)
+- [x] Exact accepted/rejected counts, stable codes, request IDs (ING-007)
+- [x] No secrets logged; redaction of keys, bearer tokens, and secret attributes before storage
+      (ING-008, §9.1)
+- [x] Backend failure → `503` + `Retry-After`, nothing recorded (no false ack); not configured
+      → `503 BACKEND_NOT_CONFIGURED` (ING-009)
+- [x] Metrics in a gateway registry on the internal `/telemetry-metrics`, scraped every 15 s;
+      fixed buckets documented (ING-012, MET-001 buckets)
+- [x] Environment authoritative, `ENVIRONMENT_MISMATCH` (ING-013)
+- [x] Route cap 100 / service cap 20 per project → `__other__` + overflow counter; ID segments
+      normalized (ING-014)
+- [x] Loki multi-tenant: tenant = org, `project` label on every stream, low-cardinality labels,
+      request ID as structured metadata (LOG-001, LOG-002, LOG-003, LOG-009)
+- [x] Platform metrics: ingest records/requests/duration, backend calls/latency, overflow (SELF-002)
+
+**Verification (2026-10-27):** lint, type-check, and build clean; `npm test` 182/182 passed
+(22 files). Highlights:
+- A real-Loki test proves another tenant sees 0 streams.
+- An SDK → API end-to-end test runs over a real HTTP port.
+- Live stack run: the demo store sent 183 requests (165 × 2xx, 18 × 4xx). Prometheus showed exactly
+  165 and 18. Loki held 232 lines (183 access logs + 49 app logs), with no loss. p95 per route was
+  computed from the histogram. Querying Loki as a different tenant returned 0 streams.
+
+**Known limitation:** metrics accepted in the seconds before an API process stops, and not yet
+scraped, are lost (pull model). This is documented in `docs/ingestion-api.md`.
 
 ## M5 — Metrics and logs exploration
 
