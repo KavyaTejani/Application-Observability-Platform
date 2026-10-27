@@ -10,6 +10,7 @@ export interface PlatformMetrics {
   httpRequests: Counter<'method' | 'route' | 'status_class'>;
   httpDuration: Histogram<'method' | 'route' | 'status_class'>;
   dependencyProbeFailures: Counter<'dependency'>;
+  authEvents: Counter<'event'>;
 }
 
 export function createPlatformMetrics(): PlatformMetrics {
@@ -36,6 +37,12 @@ export function createPlatformMetrics(): PlatformMetrics {
       name: 'aop_dependency_probe_failures_total',
       help: 'Readiness probe failures by dependency.',
       labelNames: ['dependency'],
+      registers: [registry],
+    }),
+    authEvents: new Counter({
+      name: 'aop_auth_events_total',
+      help: 'Authentication events: register, login_success, login_failure.',
+      labelNames: ['event'],
       registers: [registry],
     }),
   };

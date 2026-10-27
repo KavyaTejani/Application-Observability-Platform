@@ -16,7 +16,7 @@ describe('web app serving', () => {
   });
   afterAll(() => rmSync(distDir, { recursive: true, force: true }));
 
-  const app = () => buildTestApp({}, { webDistDir: distDir }).app;
+  const app = () => buildTestApp({ config: { webDistDir: distDir } }).app;
 
   it('serves index.html for client-side routes without caching it', async () => {
     const res = await request(app()).get('/projects/123').set('Accept', 'text/html');

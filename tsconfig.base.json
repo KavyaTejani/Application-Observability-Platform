@@ -16,6 +16,7 @@
     "isolatedModules": true,
     "verbatimModuleSyntax": true,
     "declaration": false,
-    "sourceMap": true
+    "sourceMap": true,
+    "customConditions": ["source"]
   }
 }

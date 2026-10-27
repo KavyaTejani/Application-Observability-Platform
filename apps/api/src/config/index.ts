@@ -33,6 +33,10 @@ const envSchema = z.object({
   SESSION_SECRET: z.string().min(32, 'SESSION_SECRET must be at least 32 characters'),
   TELEMETRY_KEY_PEPPER: z.string().min(32, 'TELEMETRY_KEY_PEPPER must be at least 32 characters'),
 
+  // A session ends after this much inactivity, and in any case after the absolute lifetime.
+  SESSION_IDLE_TTL_MINUTES: z.coerce.number().int().min(5).max(10_080).default(720),
+  SESSION_ABSOLUTE_TTL_HOURS: z.coerce.number().int().min(1).max(720).default(168),
+
   HEALTH_CHECK_TIMEOUT_MS: z.coerce.number().int().min(100).max(10_000).default(2000),
 });
 
@@ -54,6 +58,9 @@ export type AppConfig = Readonly<{
   sessionSecret: string;
   telemetryKeyPepper: string;
   healthCheckTimeoutMs: number;
+  session: Readonly<{ idleTtlMs: number; absoluteTtlMs: number; cookieName: string }>;
+  /** Origins allowed to send state-changing, cookie-authenticated requests (CSRF defence). */
+  allowedOrigins: readonly string[];
 }>;
 
 export class ConfigError extends Error {
@@ -106,5 +113,15 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env): AppConfig {
     sessionSecret: env.SESSION_SECRET,
     telemetryKeyPepper: env.TELEMETRY_KEY_PEPPER,
     healthCheckTimeoutMs: env.HEALTH_CHECK_TIMEOUT_MS,
+    session: Object.freeze({
+      idleTtlMs: env.SESSION_IDLE_TTL_MINUTES * 60_000,
+      absoluteTtlMs: env.SESSION_ABSOLUTE_TTL_HOURS * 3_600_000,
+      // The __Host- prefix makes browsers enforce Secure, Path=/ and no Domain attribute. It
+      // requires HTTPS, so plain-HTTP local development uses an unprefixed name.
+      cookieName: env.NODE_ENV === 'production' ? '__Host-aop_sid' : 'aop_sid',
+    }),
+    allowedOrigins: Object.freeze([
+      ...new Set([new URL(env.WEB_ORIGIN).origin, new URL(env.APP_BASE_URL).origin]),
+    ]),
   });
 }

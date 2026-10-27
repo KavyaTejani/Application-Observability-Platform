@@ -26,12 +26,38 @@ verified against the running system and tests. Each milestone ends with `npm run
 readiness `200` with all four dependencies up, `503` with Loki stopped, recovery after restart;
 Prometheus target `aop-api` healthy; public `/metrics` returns `404`.
 
-## M2 — Identity and tenancy
+### M1 follow-ups (deployment)
 
-- [ ] Register / login / logout, server-side sessions (hashed IDs, idle + absolute TTL)
-- [ ] CSRF / origin protection for mutating requests; rate-limited auth routes
-- [ ] Organization bootstrap on signup, memberships, owner/member RBAC
-- [ ] Central tenant-scope helper; metadata isolation tests
+- [x] Production `Dockerfile`: one image, Express serves API + built UI from one origin
+- [x] Telemetry backends optional; readiness reports `degraded` / `not_configured` honestly
+- [x] Browser status uses `/api/v1/status` (content blockers block `/health/*`)
+- [x] Deployed on Render (free) + MongoDB Atlas + Render Key Value
+
+## M2 — Identity and tenancy ✅
+
+- [x] Register / login / logout (AUTH-001, -003). Argon2id password hashing (AUTH-002).
+- [x] Server-side sessions: HMAC-hashed IDs, idle (sliding) + absolute TTL, TTL index,
+      revocation on logout, fresh ID on login (AUTH-003, -007)
+- [x] CSRF origin check on every state-changing `/api/v1` request (AUTH-004)
+- [x] Redis rate limits on sign-up and login. Generic invalid-credentials error with
+      timing equalization (AUTH-005).
+- [x] Consistent `401 UNAUTHENTICATED` (AUTH-006)
+- [x] Organization created on sign-up with owner membership; default Developer plan seeded
+      (ORG-001, QUOTA-002 data model)
+- [x] Owner/member RBAC in one policy module with a matrix test (ORG-002, ORG-003)
+- [x] `TenantScope` helper; non-members get `404`. Metadata isolation tests (§14.2 item 1, M2 surface).
+- [x] Shared `@aop/validation` package (Zod) used by API and web forms
+- [x] Web: sign-in, sign-up, session guard, organization overview with members, sign-out
+- [x] Demo seed (`npm run seed:demo -w @aop/api`) for owner/member demonstration
+- [x] `docs/threat-model.md` started
+
+**Verification (2026-10-27):** lint clean; type-check clean; `npm test` 86/86 passed. The 10
+test files include integration tests against real MongoDB and Redis (Docker). End-to-end via the
+Vite proxy: register → me → members → CSRF rejection → logout → session revoked → generic login
+error. Production image verified: `__Host-aop_sid; HttpOnly; Secure; SameSite=Lax`.
+
+**Deferred (by design):** invitations, email verification, password reset (P1). Membership
+for the member role comes from the seed script for now.
 
 ## M3 — Projects and keys
 

@@ -7,7 +7,11 @@ import { connectMongo, pingMongo } from './infra/mongo.js';
 import { createRedis } from './infra/redis.js';
 import { createInternalApp } from './internal-app.js';
 import { createLogger } from './lib/logger.js';
+import { RedisRateLimiter } from './lib/rate-limiter.js';
+import { AuthService } from './modules/auth/auth.service.js';
+import { SessionService } from './modules/auth/session.service.js';
 import { HealthService } from './modules/health/health.service.js';
+import { ensureDefaultPlan } from './modules/plans/plan.service.js';
 import { createPlatformMetrics } from './observability/platform-metrics.js';
 
 function loadConfigOrExit() {
@@ -66,7 +70,19 @@ async function main(): Promise<void> {
     },
   );
 
-  const app = createApp({ config, logger, health, metrics });
+  const app = createApp({
+    config,
+    logger,
+    health,
+    metrics,
+    auth: new AuthService(logger),
+    sessions: new SessionService({
+      secret: config.sessionSecret,
+      idleTtlMs: config.session.idleTtlMs,
+      absoluteTtlMs: config.session.absoluteTtlMs,
+    }),
+    limiter: new RedisRateLimiter(redis),
+  });
   const internalApp = createInternalApp(metrics);
 
   const server: Server = app.listen(config.port, () =>
@@ -76,7 +92,13 @@ async function main(): Promise<void> {
     logger.info({ port: config.internalPort }, 'Internal metrics listener started'),
   );
 
-  void connectMongoWithRetry(config.mongoUri, logger);
+  void connectMongoWithRetry(config.mongoUri, logger).then(async () => {
+    try {
+      await ensureDefaultPlan();
+    } catch (error) {
+      logger.error({ err: error }, 'Failed to seed the default plan');
+    }
+  });
   redis.connect().catch((err: Error) => logger.warn({ err: err.message }, 'Redis connect failed'));
 
   let shuttingDown = false;

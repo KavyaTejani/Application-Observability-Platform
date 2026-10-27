@@ -4,7 +4,8 @@ A developer-facing SaaS for monitoring Node.js applications: collect request met
 structured logs with a TypeScript SDK, explore them in dashboards and a log search, and get
 alerted (with deduplicated incidents and webhooks) when error rate or latency crosses a threshold.
 
-> **Status:** under active development. Milestone **M1 (Foundations)** is complete. See
+> **Status:** under active development. Milestones **M1 (Foundations)** and **M2 (Identity and
+> tenancy)** are complete. See
 > [`docs/implementation-checklist.md`](docs/implementation-checklist.md) for verified progress.
 > Features below are listed only once they work.
 
@@ -20,6 +21,16 @@ time window.
 - **Independent developers** who own one or more Node.js services.
 - **Small-team owners** who manage projects, credentials, usage limits, and alerts.
 - **Team members** who investigate dashboards, logs, and incidents.
+
+## Key features (working now)
+
+- **Accounts:** email/password sign-up, sign-in, and sign-out. Server-side sessions use
+  `HttpOnly`, `SameSite=Lax`, and `Secure` cookies, with idle and absolute expiry.
+- **Organizations and roles:** sign-up creates an organization with you as **owner**. Members
+  get the **member** role. Every organization route verifies membership on the server.
+- **Security controls:** Argon2id password hashing, CSRF origin checks on state-changing
+  requests, rate-limited sign-up and sign-in, and one generic error for any failed sign-in.
+- **System status page** showing live readiness of every backend.
 
 ## Tech stack
 
@@ -40,7 +51,7 @@ time window.
 ```text
 apps/api      Express control plane, telemetry gateway, health and internal metrics
 apps/web      React web application
-packages/     Shared packages (SDK, validation, types) — added in later milestones
+packages/validation   Zod schemas shared by the API and the web forms
 infra/        Docker Compose and Prometheus / Loki / OTel Collector configuration
 docs/         Architecture, checklist, and (later) API docs, threat model, reports
 ```
@@ -65,13 +76,16 @@ npm run dev:api   # http://localhost:4000
 npm run dev:web   # http://localhost:5173
 ```
 
-Check the stack: open <http://localhost:5173>. It shows live readiness for every dependency.
-You can also run `curl http://localhost:4000/health/ready`.
+Open <http://localhost:5173> and create an account. System status is at `/status`.
+
+**Demo users (optional):** `npm run seed:demo -w @aop/api` creates a "Demo Organization" with
+`owner@demo.local` (owner) and `member@demo.local` (member). Both use the password
+`demo-password-2026`, or the value of `DEMO_PASSWORD` if it is set. Run this in development only.
 
 | Command                                 | Purpose                                   |
 | --------------------------------------- | ----------------------------------------- |
 | `npm run check`                         | Lint, type-check, and run all tests       |
-| `npm test`                              | Run tests                                 |
+| `npm test`                              | Run tests (integration tests need `infra:up`) |
 | `npm run build`                         | Production build of all workspaces        |
 | `npm run infra:up` / `infra:down`       | Start / stop the Docker backends          |
 
@@ -90,6 +104,22 @@ The API refuses to start, with a clear message, if a variable is missing or inva
 | `GET /health/live`           | Process liveness (no dependency checks)                    |
 | `GET /health/ready`          | Dependency readiness; `503` if any dependency is down      |
 | `GET :9464/metrics`          | Platform metrics, internal listener only (not public)      |
+| `GET /api/v1/status`         | Readiness report for the browser status page               |
+| `POST /api/v1/auth/register` | Create account + organization; signs in                    |
+| `POST /api/v1/auth/login`    | Sign in (rate-limited, generic error on failure)           |
+| `POST /api/v1/auth/logout`   | Sign out and revoke the session server-side                |
+| `GET /api/v1/auth/me`        | Current user and their organizations                       |
+| `GET /api/v1/organizations`  | Organizations the caller belongs to                        |
+| `GET /api/v1/organizations/:organizationId`         | Organization detail (members only) |
+| `GET /api/v1/organizations/:organizationId/members` | Member list (members only)         |
+
+All `/api/v1` errors use one envelope: `{ "error": { "code", "message", "requestId", "details" } }`.
+State-changing requests must come from the app's own origin (CSRF protection).
+
+## Security notes
+
+See [`docs/threat-model.md`](docs/threat-model.md) for trust boundaries, controls, and known
+limitations.
 
 ## Deployment
 

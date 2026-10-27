@@ -23,7 +23,7 @@ export default tseslint.config(
   },
   {
     // Test files and scripts may use console output for diagnostics.
-    files: ['**/*.test.ts', 'scripts/**'],
-    rules: { 'no-console': 'off' },
+    files: ['**/*.test.ts', 'scripts/**', 'apps/*/src/scripts/**'],
+    rules: { 'no-console': 'off', '@typescript-eslint/no-non-null-assertion': 'off' },
   },
 );
