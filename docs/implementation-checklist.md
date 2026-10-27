@@ -1,6 +1,6 @@
 # Implementation Checklist (Phase 0)
 
-Mapped to the milestones in `prd-corrected.md` §6.1. An item is ticked only after it has been
+Mapped to the Phase 0 milestones (M1–M8) of the project requirements document. An item is ticked only after it has been
 verified against the running system and tests. Each milestone ends with `npm run check`
 (lint + type-check + tests), whose real output is recorded below.
 

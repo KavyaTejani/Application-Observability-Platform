@@ -23,7 +23,13 @@ Thumbs.db
 !.vscode/extensions.json
 .idea/
 
+# learing and planning docs
+prd-corrected.md
+END_TERM_PROJECT_GUIDELINES.md
+application-observability-learning-guide.md
+
 # Local tool state
 .claude/
 playwright-report/
 test-results/
+
