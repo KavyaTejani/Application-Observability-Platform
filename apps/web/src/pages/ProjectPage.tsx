@@ -1,9 +1,10 @@
 import { MAX_ROTATION_GRACE_HOURS } from '@aop/validation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState, type FormEvent } from 'react';
-import { Link, useNavigate, useOutletContext, useParams } from 'react-router';
+import { Link, NavLink, Outlet, useNavigate, useOutletContext, useParams } from 'react-router';
 import { Alert, Button, Card, Spinner, TextField } from '../components/ui';
 import { api, errorMessage, hasFieldErrors, ApiError } from '../lib/api';
+import { formatRelative } from '../lib/format';
 import type { ApiKeySummary, CreatedApiKey, OrganizationSummary, Project } from '../lib/types';
 import { projectsKey } from './ProjectsPage';
 
@@ -16,14 +17,23 @@ const formatDateTime = (iso: string | null) =>
 
 const keysKey = (projectId: string) => ['projects', projectId, 'keys'];
 
-export function ProjectPage() {
+export interface ProjectContext {
+  org: OrganizationSummary;
+  project: Project;
+}
+
+/**
+ * Shell for one project: header, freshness, and tabs (dashboard, logs, keys and settings). The
+ * project is loaded once here and shared with the tabs through the outlet context.
+ */
+export function ProjectLayout() {
   const org = useOutletContext<OrganizationSummary>();
   const { projectId = '' } = useParams();
-  const isOwner = org.role === 'owner';
 
   const project = useQuery({
     queryKey: ['projects', projectId],
     queryFn: ({ signal }) => api<{ project: Project }>(`/projects/${projectId}`, { signal }),
+    refetchInterval: 60_000,
   });
 
   if (project.isPending) return <Spinner />;
@@ -39,6 +49,14 @@ export function ProjectPage() {
   }
 
   const { project: p } = project.data;
+  const base = `/orgs/${org.id}/projects/${p.id}`;
+  const tab = ({ isActive }: { isActive: boolean }) =>
+    `border-b-2 px-3 py-2 text-sm font-medium ${
+      isActive
+        ? 'border-slate-900 text-slate-900'
+        : 'border-transparent text-slate-600 hover:text-slate-900'
+    }`;
+
   return (
     <div className="space-y-6">
       <div>
@@ -47,13 +65,36 @@ export function ProjectPage() {
         </Link>
         <h1 className="mt-2 text-2xl font-semibold text-slate-900">{p.name}</h1>
         <p className="mt-1 text-sm text-slate-600">
-          Environment: <strong>{p.environment}</strong> · created {formatDateTime(p.createdAt)}
+          Environment: <strong>{p.environment}</strong> · last data received:{' '}
+          <strong title={p.lastTelemetryAt ?? undefined}>
+            {formatRelative(p.lastTelemetryAt)}
+          </strong>
         </p>
       </div>
+      <nav aria-label="Project" className="flex gap-1 border-b border-slate-200">
+        <NavLink to={base} end className={tab}>
+          Dashboard
+        </NavLink>
+        <NavLink to={`${base}/logs`} className={tab}>
+          Logs
+        </NavLink>
+        <NavLink to={`${base}/settings`} className={tab}>
+          Keys &amp; settings
+        </NavLink>
+      </nav>
+      <Outlet context={{ org, project: p } satisfies ProjectContext} />
+    </div>
+  );
+}
 
-      <ApiKeysCard projectId={p.id} canManage={isOwner} />
-      <SdkSetupCard project={p} />
-      {isOwner && <DangerZone organizationId={org.id} project={p} />}
+export function ProjectSettingsPage() {
+  const { org, project } = useOutletContext<ProjectContext>();
+  const isOwner = org.role === 'owner';
+  return (
+    <div className="space-y-6">
+      <ApiKeysCard projectId={project.id} canManage={isOwner} />
+      <SdkSetupCard project={project} />
+      {isOwner && <DangerZone organizationId={org.id} project={project} />}
     </div>
   );
 }

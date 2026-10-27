@@ -36,6 +36,7 @@ export interface Project {
   name: string;
   slug: string;
   environment: Environment;
+  lastTelemetryAt: string | null;
   createdAt: string;
   updatedAt: string;
 }

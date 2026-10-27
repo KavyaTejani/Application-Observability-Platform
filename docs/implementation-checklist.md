@@ -125,9 +125,41 @@ revoke → 401 → member create-key 403 → delete 204. The key never appears i
 **Known limitation:** metrics accepted in the seconds before an API process stops, and not yet
 scraped, are lost (pull model). This is documented in `docs/ingestion-api.md`.
 
-## M5 — Metrics and logs exploration
+## M5 — Metrics and logs exploration ✅
 
-- [ ] Structured, allow-listed query builder; metrics summary and charts; log search
+- [x] Strict, allow-listed query descriptors in `@aop/validation`. Raw `promql`/`expr`/`query`
+      fields and tenant overrides are rejected with 400 (MET-003, §14.2 item 7).
+- [x] Dedicated PromQL generator (`modules/query/promql.ts`). Tenant matchers come first, always
+      from the ProjectScope; values are escaped; there is a fixed template per metric key
+      (MET-004, §9.5).
+- [x] Ranges 15m/1h/6h/24h; steps bounded to ≤ 1000 points; rate window ≥ 4 scrapes (MET-002,
+      MET-003)
+- [x] Group-by/filter limited to service, route, method, status_class (MET-005)
+- [x] Error rate = 5xx share; 4xx reported separately; zero traffic = no data, zero errors = 0
+      (`or (total*0)` trick); NaN → null gaps on charts (MET-001, MET-006)
+- [x] Metrics summary + time-series API; dashboard with range selector, service filter, refresh,
+      auto-refresh, stat tiles, charts with legend, tooltip, data table, and an empty state (§13.2 #4)
+- [x] LogQL generator: mandatory `project` matcher; tenant = `X-Scope-OrgID` from scope;
+      structured-metadata request-ID filter; literal case-insensitive text search (LOG-004,
+      LOG-009)
+- [x] Log search bounded: span ≤ 24 h, lookback ≤ 7 d, limit ≤ 200. Cursor pagination with no
+      loss or duplicates on equal timestamps (LOG-005, LOG-006).
+- [x] Log explorer UI: filters in the URL, detail panel, "show all logs for this request",
+      load older, time-zone label (§13.2 #5)
+- [x] Telemetry freshness: `lastTelemetryAt` per project (throttled `$max` write)
+- [x] **Bug found and fixed in live testing:** new series were exported with their first
+      increments already applied, so `increase()`/`rate()` never counted them (for example the
+      first 5xx of a route). New series are now exported at 0 first, and their increments are
+      applied after the next scrape. Verified live: raw samples went `0 → 7`.
+- [x] Isolation: cross-tenant metrics/logs return 404 before any backend call. With real Loki, a
+      forged `X-Scope-OrgID` from the browser is ignored (§14.2 items 2, 3).
+
+**Verification (2026-10-27):** lint, type-check, and build clean; `npm test` 213/213 passed.
+Live stack: summary, time series, p95, severity and request-ID log filters, and pagination all
+behaved correctly on demo-store data. A raw-PromQL request was rejected with 400.
+
+**Known approximations (documented in the UI):** latency percentiles come from histogram buckets;
+the request total uses `increase()`, which extrapolates (shown as "≈").
 
 ## M6 — Alerts and incidents
 

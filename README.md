@@ -4,8 +4,8 @@ A developer-facing SaaS for monitoring Node.js applications: collect request met
 structured logs with a TypeScript SDK, explore them in dashboards and a log search, and get
 alerted (with deduplicated incidents and webhooks) when error rate or latency crosses a threshold.
 
-> **Status:** under active development. Milestones **M1–M4** (foundations, identity and tenancy, projects and keys, SDK
-> and ingestion) are complete. See
+> **Status:** under active development. Milestones **M1–M5** (foundations, identity and tenancy, projects and keys, SDK
+> and ingestion, metrics and logs exploration) are complete. See
 > [`docs/implementation-checklist.md`](docs/implementation-checklist.md) for verified progress.
 > Features below are listed only once they work.
 
@@ -46,6 +46,16 @@ time window.
   are key-authenticated, validated, and size-limited. Each record is accepted or rejected with an
   exact count. Metrics go to Prometheus and logs to Loki, both tenant-scoped by the server. Secrets
   are redacted, and route and service cardinality is capped.
+- **Metrics dashboard:** request rate, server error rate (5xx), and p50/p95/p99 latency charts
+  over 15 minutes, 1 hour, 6 hours, or 24 hours, filterable by service. Summary tiles show request
+  totals, 4xx and 5xx rates, latency, and last data received. "No data" (gaps) is kept distinct from
+  zero, and every chart has a data-table view.
+- **Log explorer:** search by time range, severity, service, request ID, and case-insensitive text.
+  Results are newest first, with "load older" pagination, a detail panel, and "show all logs for this
+  request". Filters live in the URL, so a search can be shared.
+- **Safe query model:** the browser never sends PromQL or LogQL. It sends allow-listed descriptors
+  (strict schemas reject unknown fields), and the server generates every query with the caller's
+  organization and project.
 - **Demo service** ([`apps/demo-node-service`](apps/demo-node-service)): an instrumented store API
   plus a traffic generator for realistic demo data.
 - **System status page** showing live readiness of every backend.
@@ -119,8 +129,9 @@ other machines.
    `AOP_API_KEY`.
 3. Run `npm run start -w @aop/demo-node-service`. It prints the project it connected to.
 4. Generate traffic with `npm run traffic -w @aop/demo-node-service` (about 5 req/s for 60 s).
-5. Metrics reach Prometheus within one 15 s scrape, and logs reach Loki immediately. The
-   dashboards and log search are built in milestone M5.
+5. Open the project in the web app. The **Dashboard** tab shows the metrics, which appear
+   within about 30 s (the scrape interval, plus one scrape for new series), and the **Logs** tab
+   shows the logs immediately.
 
 ## Environment variables
 
@@ -147,6 +158,10 @@ The API refuses to start, with a clear message, if a variable is missing or inva
 | `GET, POST /api/v1/projects/:projectId/keys` | List key metadata (members) / create a key (owners) |
 | `POST /api/v1/projects/:projectId/keys/:keyId/revoke` | Revoke a key (owners)          |
 | `POST /api/v1/projects/:projectId/keys/:keyId/rotate` | Rotate a key, optional `gracePeriodHours` (owners) |
+| `GET /api/v1/projects/:projectId/metrics/summary?range=1h` | Window summary: requests, 4xx/5xx rates, p50/p95/p99, last data (members) |
+| `POST /api/v1/projects/:projectId/metrics/query` | Time series for `{ metricKey, range, interval?, filters?, groupBy? }` (members) |
+| `GET /api/v1/projects/:projectId/logs` | Log search: `from, to, severity, service, requestId, contains, limit, cursor` (members) |
+| `GET /api/v1/projects/:projectId/services` | Service names seen in metrics or logs (filter options) |
 | `POST /v1/telemetry/test`    | Verify an ingestion key (`Authorization: Bearer <key>`)   |
 
 All `/api/v1` errors use one envelope: `{ "error": { "code", "message", "requestId", "details" } }`.

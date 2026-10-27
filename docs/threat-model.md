@@ -51,6 +51,10 @@ secrets _(M6)_, and server secrets (`SESSION_SECRET`, `TELEMETRY_KEY_PEPPER`).
 | Secrets stored in telemetry | Keys, Bearer/Basic credentials, and `password=`-style pairs are redacted from messages. Secret-named attributes are replaced with `[REDACTED]`. | `telemetry/redact.ts` |
 | False acknowledgement / double counting | Logs are acknowledged only after Loki confirms. On failure nothing from the batch is recorded, so SDK retries are safe. | `ingest.service.ts` |
 | SDK harming the host app | Bounded buffer and retries; errors go to `onError`, never thrown into handlers; the timer is `unref()`'d; the key is a private field | `packages/node-sdk/src/client.ts` |
+| Cross-tenant metric queries | The browser sends allow-listed descriptors only (strict schemas reject `promql`, `expr`, and tenant fields). PromQL is generated server-side, with the `organization_id`/`project_id` matchers taken from the ProjectScope, first in every selector; label values are escaped. | `modules/query/promql.ts`, `packages/validation/src/queries.ts` |
+| Cross-tenant log queries | `X-Scope-OrgID` is set from the scope (a browser-sent header is ignored; tested with real Loki), plus a mandatory `project` matcher. Text search is regex-escaped inside a raw string; backticks are refused. | `modules/query/logql.ts`, `backend-clients.ts` |
+| Expensive / unbounded queries | Fixed ranges; ≤ 1000 points per series; log span ≤ 24 h, lookback ≤ 7 d, limit ≤ 200; validated cursors; 240 queries/min per user; backend timeouts | `queries.ts`, `query.routes.ts` |
+| Backend details in errors | Query failures map to generic `503 QUERY_BACKEND_UNAVAILABLE` / `502 QUERY_FAILED`. Details are logged server-side only. | `backend-clients.ts` |
 | Plan-limit bypass by racing | Project slots are reserved with a conditional atomic `$inc`, and released if the insert fails | `project.service.ts` |
 
 ## Known limitations (accepted for the MVP)
@@ -80,7 +84,10 @@ secrets _(M6)_, and server secrets (`SESSION_SECRET`, `TELEMETRY_KEY_PEPPER`).
 10. **The internal scrape port (9464) has no authentication.** It relies on network isolation:
    it is never published in production, and Prometheus reaches it over the private network only.
 
+11. **Prometheus is not itself tenant-aware.** Isolation rests on the API being the only query path
+    and on generated matchers. Arbitrary PromQL would need a multi-tenant backend such as Mimir
+    (PRD §2.3).
+
 ## Planned
 
-- Telemetry *query* isolation, with server-generated PromQL/LogQL only _(M5)_
 - Webhook SSRF protection _(M6)_; quotas _(M7)_; the full isolation suite _(M8)_
