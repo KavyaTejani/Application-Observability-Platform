@@ -78,6 +78,9 @@ export function ProjectLayout() {
         <NavLink to={`${base}/logs`} className={tab}>
           Logs
         </NavLink>
+        <NavLink to={`${base}/alerts`} className={tab}>
+          Alerts
+        </NavLink>
         <NavLink to={`${base}/settings`} className={tab}>
           Keys &amp; settings
         </NavLink>
