@@ -1,0 +1,4067 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Application Observability Platform API",
+    "version": "1.0.0",
+    "description": "Product API (`/api/v1`, session cookie) and telemetry ingestion API (`/v1/telemetry`, project key). Every error uses the `ErrorEnvelope` shape."
+  },
+  "servers": [
+    {
+      "url": "http://localhost:4000",
+      "description": "Local development"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Health"
+    },
+    {
+      "name": "Auth"
+    },
+    {
+      "name": "Organizations"
+    },
+    {
+      "name": "Projects"
+    },
+    {
+      "name": "Ingestion keys"
+    },
+    {
+      "name": "Metrics"
+    },
+    {
+      "name": "Logs"
+    },
+    {
+      "name": "Alerts"
+    },
+    {
+      "name": "Notifications"
+    },
+    {
+      "name": "Usage"
+    },
+    {
+      "name": "Operator"
+    },
+    {
+      "name": "Ingestion"
+    }
+  ],
+  "paths": {
+    "/health/live": {
+      "get": {
+        "operationId": "liveness",
+        "tags": ["Health"],
+        "summary": "Process liveness (no dependency checks)",
+        "responses": {
+          "200": {
+            "description": "Alive",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string"
+                    },
+                    "uptimeSeconds": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": ["status", "uptimeSeconds"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health/ready": {
+      "get": {
+        "operationId": "readiness",
+        "tags": ["Health"],
+        "summary": "Dependency readiness",
+        "responses": {
+          "200": {
+            "description": "Ready or degraded (some backends not configured)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Readiness"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A configured dependency is down",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Readiness"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/status": {
+      "get": {
+        "operationId": "status",
+        "tags": ["Health"],
+        "summary": "Readiness report for the browser status page",
+        "description": "Same as /health/ready under a path content blockers do not filter.",
+        "responses": {
+          "200": {
+            "description": "Ready or degraded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Readiness"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Not ready",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Readiness"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/register": {
+      "post": {
+        "operationId": "register",
+        "tags": ["Auth"],
+        "summary": "Create an account and its organization, and sign in",
+        "description": "State-changing request: the `Origin` (or `Referer`) header must be the app’s own origin. Rate-limited per IP.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100
+                  },
+                  "email": {
+                    "type": "string",
+                    "maxLength": 254
+                  },
+                  "password": {
+                    "type": "string",
+                    "minLength": 10,
+                    "maxLength": 128
+                  },
+                  "organizationName": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100
+                  }
+                },
+                "required": ["name", "email", "password"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Signed in; sets the session cookie",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "user": {
+                      "$ref": "#/components/schemas/User"
+                    },
+                    "organizations": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/OrganizationSummary"
+                      }
+                    }
+                  },
+                  "required": ["user", "organizations"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed (`details.fields` holds per-field messages)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict (duplicate name, plan limit reached)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit or quota exceeded (`Retry-After` header)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/login": {
+      "post": {
+        "operationId": "login",
+        "tags": ["Auth"],
+        "summary": "Sign in",
+        "description": "State-changing request: the `Origin` (or `Referer`) header must be the app’s own origin. Any failure returns the same `INVALID_CREDENTIALS`.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "maxLength": 254
+                  },
+                  "password": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  }
+                },
+                "required": ["email", "password"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Signed in",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "user": {
+                      "$ref": "#/components/schemas/User"
+                    }
+                  },
+                  "required": ["user"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed (`details.fields` holds per-field messages)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in / invalid credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit or quota exceeded (`Retry-After` header)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/logout": {
+      "post": {
+        "operationId": "logout",
+        "tags": ["Auth"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Sign out and revoke the session server-side",
+        "responses": {
+          "204": {
+            "description": "Signed out"
+          }
+        }
+      }
+    },
+    "/api/v1/auth/me": {
+      "get": {
+        "operationId": "me",
+        "tags": ["Auth"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Current user and their organizations",
+        "responses": {
+          "200": {
+            "description": "Current user",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "user": {
+                      "$ref": "#/components/schemas/User"
+                    },
+                    "organizations": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/OrganizationSummary"
+                      }
+                    }
+                  },
+                  "required": ["user", "organizations"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in / invalid credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/organizations": {
+      "get": {
+        "operationId": "listOrganizations",
+        "tags": ["Organizations"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Organizations the caller belongs to",
+        "responses": {
+          "200": {
+            "description": "Organizations",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "organizations": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/OrganizationSummary"
+                      }
+                    }
+                  },
+                  "required": ["organizations"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in / invalid credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/organizations/{organizationId}": {
+      "parameters": [
+        {
+          "name": "organizationId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{24}$"
+          }
+        }
+      ],
+      "get": {
+        "operationId": "getOrganization",
+        "tags": ["Organizations"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Organization detail (members)",
+        "responses": {
+          "200": {
+            "description": "Organization",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "organization": {
+                      "type": "object"
+                    }
+                  },
+                  "required": ["organization"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in / invalid credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found, or not visible to the caller (no existence oracle)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/members": {
+      "parameters": [
+        {
+          "name": "organizationId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{24}$"
+          }
+        }
+      ],
+      "get": {
+        "operationId": "listMembers",
+        "tags": ["Organizations"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Member list (members)",
+        "responses": {
+          "200": {
+            "description": "Members",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "members": {
+                      "type": "array",
+                      "items": {
+                        "type": "object"
+                      }
+                    }
+                  },
+                  "required": ["members"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in / invalid credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found, or not visible to the caller (no existence oracle)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/usage": {
+      "parameters": [
+        {
+          "name": "organizationId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{24}$"
+          }
+        }
+      ],
+      "get": {
+        "operationId": "getUsage",
+        "tags": ["Usage"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Today’s quota use, per-project breakdown, plan limits, 7-day history (members)",
+        "responses": {
+          "200": {
+            "description": "Usage",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "usage": {
+                      "$ref": "#/components/schemas/Usage"
+                    }
+                  },
+                  "required": ["usage"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in / invalid credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found, or not visible to the caller (no existence oracle)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/projects": {
+      "parameters": [
+        {
+          "name": "organizationId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{24}$"
+          }
+        }
+      ],
+      "get": {
+        "operationId": "listProjects",
+        "tags": ["Projects"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Projects of the organization (members)",
+        "responses": {
+          "200": {
+            "description": "Projects",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "projects": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Project"
+                      }
+                    }
+                  },
+                  "required": ["projects"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in / invalid credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found, or not visible to the caller (no existence oracle)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createProject",
+        "tags": ["Projects"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Create a project (owners); the plan’s project limit is enforced atomically",
+        "description": "State-changing request: the `Origin` (or `Referer`) header must be the app’s own origin.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 60,
+                    "pattern": "^[\\p{L}\\p{N}][\\p{L}\\p{N} ._-]*$"
+                  },
+                  "environment": {
+                    "type": "string",
+                    "enum": ["development", "staging", "production"]
+                  }
+                },
+                "required": ["name", "environment"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "project": {
+                      "$ref": "#/components/schemas/Project"
+                    }
+                  },
+                  "required": ["project"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed (`details.fields` holds per-field messages)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in / invalid credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Signed in, but the role does not allow this action",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found, or not visible to the caller (no existence oracle)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict (duplicate name, plan limit reached)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{projectId}": {
+      "parameters": [
+        {
+          "name": "projectId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{24}$"
+          }
+        }
+      ],
+      "get": {
+        "operationId": "getProject",
+        "tags": ["Projects"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Project detail (members)",
+        "responses": {
+          "200": {
+            "description": "Project",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "project": {
+                      "$ref": "#/components/schemas/Project"
+                    }
+                  },
+                  "required": ["project"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in / invalid credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found, or not visible to the caller (no existence oracle)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "operationId": "renameProject",
+        "tags": ["Projects"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Rename (owners)",
+        "description": "State-changing request: the `Origin` (or `Referer`) header must be the app’s own origin.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 60,
+                    "pattern": "^[\\p{L}\\p{N}][\\p{L}\\p{N} ._-]*$"
+                  }
+                },
+                "required": ["name"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "project": {
+                      "$ref": "#/components/schemas/Project"
+                    }
+                  },
+                  "required": ["project"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed (`details.fields` holds per-field messages)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in / invalid credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Signed in, but the role does not allow this action",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found, or not visible to the caller (no existence oracle)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict (duplicate name, plan limit reached)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteProject",
+        "tags": ["Projects"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Delete (owners); revokes every key of the project",
+        "description": "State-changing request: the `Origin` (or `Referer`) header must be the app’s own origin.",
+        "responses": {
+          "204": {
+            "description": "Deleted"
+          },
+          "401": {
+            "description": "Not signed in / invalid credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Signed in, but the role does not allow this action",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found, or not visible to the caller (no existence oracle)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{projectId}/keys": {
+      "parameters": [
+        {
+          "name": "projectId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{24}$"
+          }
+        }
+      ],
+      "get": {
+        "operationId": "listKeys",
+        "tags": ["Ingestion keys"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Key metadata (members); secrets are never listed",
+        "responses": {
+          "200": {
+            "description": "Keys",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "keys": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/ApiKey"
+                      }
+                    }
+                  },
+                  "required": ["keys"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in / invalid credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found, or not visible to the caller (no existence oracle)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createKey",
+        "tags": ["Ingestion keys"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Create a key (owners). The secret is in this response only.",
+        "description": "State-changing request: the `Origin` (or `Referer`) header must be the app’s own origin. Sent with `Cache-Control: no-store`.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 60
+                  }
+                },
+                "required": ["name"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreatedApiKey"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed (`details.fields` holds per-field messages)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in / invalid credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Signed in, but the role does not allow this action",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found, or not visible to the caller (no existence oracle)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{projectId}/keys/{keyId}/revoke": {
+      "parameters": [
+        {
+          "name": "projectId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{24}$"
+          }
+        },
+        {
+          "name": "keyId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "post": {
+        "operationId": "revokeKey",
+        "tags": ["Ingestion keys"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Revoke a key (owners); effective immediately on this instance",
+        "description": "State-changing request: the `Origin` (or `Referer`) header must be the app’s own origin.",
+        "responses": {
+          "200": {
+            "description": "Revoked",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "key": {
+                      "$ref": "#/components/schemas/ApiKey"
+                    }
+                  },
+                  "required": ["key"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in / invalid credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Signed in, but the role does not allow this action",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found, or not visible to the caller (no existence oracle)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{projectId}/keys/{keyId}/rotate": {
+      "parameters": [
+        {
+          "name": "projectId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{24}$"
+          }
+        },
+        {
+          "name": "keyId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "post": {
+        "operationId": "rotateKey",
+        "tags": ["Ingestion keys"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Rotate a key (owners); the old key may stay valid for a grace period",
+        "description": "State-changing request: the `Origin` (or `Referer`) header must be the app’s own origin.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "gracePeriodHours": {
+                    "default": 0,
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 24
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Replacement key, and the previous key (now expiring or revoked)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "replacement": {
+                      "$ref": "#/components/schemas/CreatedApiKey"
+                    },
+                    "previous": {
+                      "$ref": "#/components/schemas/ApiKey"
+                    }
+                  },
+                  "required": ["replacement", "previous"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed (`details.fields` holds per-field messages)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in / invalid credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Signed in, but the role does not allow this action",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found, or not visible to the caller (no existence oracle)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{projectId}/metrics/summary": {
+      "parameters": [
+        {
+          "name": "projectId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{24}$"
+          }
+        },
+        {
+          "name": "range",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "default": "1h",
+            "type": "string",
+            "enum": ["15m", "1h", "6h", "24h"]
+          }
+        },
+        {
+          "name": "serviceName",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,62}$"
+          }
+        }
+      ],
+      "get": {
+        "operationId": "metricsSummary",
+        "tags": ["Metrics"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Window summary: request total, 4xx/5xx rates, p50/p95/p99, last data",
+        "responses": {
+          "200": {
+            "description": "Summary",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "summary": {
+                      "$ref": "#/components/schemas/MetricSummary"
+                    }
+                  },
+                  "required": ["summary"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed (`details.fields` holds per-field messages)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in / invalid credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found, or not visible to the caller (no existence oracle)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit or quota exceeded (`Retry-After` header)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Backend rejected the request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A backend is unavailable or not configured",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{projectId}/metrics/query": {
+      "parameters": [
+        {
+          "name": "projectId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{24}$"
+          }
+        }
+      ],
+      "post": {
+        "operationId": "metricsQuery",
+        "tags": ["Metrics"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Time series for an allow-listed metric descriptor",
+        "description": "The browser never sends PromQL. Unknown fields (e.g. `promql`, `organizationId`) are rejected with 400; the server generates the query with the caller’s scope.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "metricKey": {
+                    "type": "string",
+                    "enum": [
+                      "request_rate",
+                      "error_rate",
+                      "client_error_rate",
+                      "p50_latency",
+                      "p95_latency",
+                      "p99_latency"
+                    ]
+                  },
+                  "range": {
+                    "type": "string",
+                    "enum": ["15m", "1h", "6h", "24h"]
+                  },
+                  "interval": {
+                    "type": "string",
+                    "enum": ["15s", "30s", "1m", "5m", "15m", "1h"]
+                  },
+                  "filters": {
+                    "default": {},
+                    "type": "object",
+                    "properties": {
+                      "serviceName": {
+                        "type": "string",
+                        "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,62}$"
+                      },
+                      "route": {
+                        "type": "string",
+                        "maxLength": 200,
+                        "pattern": "^\\/[A-Za-z0-9/:_.*{}-]*$"
+                      },
+                      "method": {
+                        "type": "string",
+                        "enum": [
+                          "GET",
+                          "POST",
+                          "PUT",
+                          "PATCH",
+                          "DELETE",
+                          "HEAD",
+                          "OPTIONS",
+                          "OTHER"
+                        ]
+                      },
+                      "statusClass": {
+                        "type": "string",
+                        "enum": ["1xx", "2xx", "3xx", "4xx", "5xx"]
+                      }
+                    },
+                    "additionalProperties": false
+                  },
+                  "groupBy": {
+                    "default": [],
+                    "maxItems": 2,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "enum": ["service", "route", "method", "status_class"]
+                    }
+                  }
+                },
+                "required": ["metricKey", "range"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Series",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MetricSeries"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed (`details.fields` holds per-field messages)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in / invalid credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found, or not visible to the caller (no existence oracle)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit or quota exceeded (`Retry-After` header)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Backend rejected the request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A backend is unavailable or not configured",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{projectId}/logs": {
+      "parameters": [
+        {
+          "name": "projectId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{24}$"
+          }
+        },
+        {
+          "name": "from",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        {
+          "name": "to",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        {
+          "name": "severity",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "maxItems": 6,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": ["TRACE", "DEBUG", "INFO", "WARN", "ERROR", "FATAL"]
+            }
+          }
+        },
+        {
+          "name": "service",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,62}$"
+          }
+        },
+        {
+          "name": "requestId",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]{1,64}$"
+          }
+        },
+        {
+          "name": "contains",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          }
+        },
+        {
+          "name": "limit",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "default": 50,
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 200
+          }
+        },
+        {
+          "name": "cursor",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "string",
+            "maxLength": 2000
+          }
+        }
+      ],
+      "get": {
+        "operationId": "searchLogs",
+        "tags": ["Logs"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Log search, newest first, with cursor pagination",
+        "responses": {
+          "200": {
+            "description": "Entries",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "entries": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/LogEntry"
+                      }
+                    },
+                    "nextCursor": {
+                      "type": ["string", "null"],
+                      "description": "Pass as `cursor` for older entries."
+                    },
+                    "from": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "to": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": ["entries", "nextCursor", "from", "to"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed (`details.fields` holds per-field messages)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in / invalid credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found, or not visible to the caller (no existence oracle)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit or quota exceeded (`Retry-After` header)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Backend rejected the request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A backend is unavailable or not configured",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{projectId}/services": {
+      "parameters": [
+        {
+          "name": "projectId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{24}$"
+          }
+        }
+      ],
+      "get": {
+        "operationId": "listServices",
+        "tags": ["Metrics"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Service names seen in metrics or logs (filter options)",
+        "responses": {
+          "200": {
+            "description": "Services",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "services": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "required": ["services"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in / invalid credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found, or not visible to the caller (no existence oracle)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A backend is unavailable or not configured",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{projectId}/alert-rules": {
+      "parameters": [
+        {
+          "name": "projectId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{24}$"
+          }
+        }
+      ],
+      "get": {
+        "operationId": "listAlertRules",
+        "tags": ["Alerts"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Alert rules of the project (members)",
+        "responses": {
+          "200": {
+            "description": "Rules",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "rules": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/AlertRule"
+                      }
+                    }
+                  },
+                  "required": ["rules"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in / invalid credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found, or not visible to the caller (no existence oracle)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createAlertRule",
+        "tags": ["Alerts"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Create a rule (members, using an existing destination)",
+        "description": "State-changing request: the `Origin` (or `Referer`) header must be the app’s own origin. MVP: `error_rate` or `p95_latency` with `gt`/`gte`.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 80
+                  },
+                  "metricKey": {
+                    "type": "string",
+                    "enum": ["error_rate", "p95_latency"]
+                  },
+                  "operator": {
+                    "type": "string",
+                    "enum": ["gt", "gte", "lt", "lte"]
+                  },
+                  "threshold": {
+                    "type": "number"
+                  },
+                  "windowSeconds": {
+                    "default": 300,
+                    "type": "integer"
+                  },
+                  "evaluationIntervalSeconds": {
+                    "default": 60,
+                    "type": "integer"
+                  },
+                  "forEvaluations": {
+                    "default": 2,
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 10
+                  },
+                  "resolveAfterEvaluations": {
+                    "default": 2,
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 10
+                  },
+                  "serviceName": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,62}$"
+                  },
+                  "notificationDestinationId": {
+                    "type": "string",
+                    "pattern": "^[a-f0-9]{24}$"
+                  },
+                  "enabled": {
+                    "default": true,
+                    "type": "boolean"
+                  }
+                },
+                "required": ["name", "metricKey", "operator", "threshold"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "rule": {
+                      "$ref": "#/components/schemas/AlertRule"
+                    }
+                  },
+                  "required": ["rule"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed (`details.fields` holds per-field messages)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in / invalid credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found, or not visible to the caller (no existence oracle)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict (duplicate name, plan limit reached)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/alert-rules/{alertRuleId}": {
+      "parameters": [
+        {
+          "name": "alertRuleId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{24}$"
+          }
+        }
+      ],
+      "patch": {
+        "operationId": "updateAlertRule",
+        "tags": ["Alerts"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Edit, enable, or disable (owners: any rule; members: their own)",
+        "description": "State-changing request: the `Origin` (or `Referer`) header must be the app’s own origin. Disabling a firing rule resolves its incident.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 80
+                  },
+                  "threshold": {
+                    "type": "number"
+                  },
+                  "windowSeconds": {
+                    "type": "integer"
+                  },
+                  "evaluationIntervalSeconds": {
+                    "type": "integer"
+                  },
+                  "forEvaluations": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 10
+                  },
+                  "resolveAfterEvaluations": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 10
+                  },
+                  "serviceName": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,62}$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "notificationDestinationId": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "pattern": "^[a-f0-9]{24}$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "enabled": {
+                    "type": "boolean"
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "rule": {
+                      "$ref": "#/components/schemas/AlertRule"
+                    }
+                  },
+                  "required": ["rule"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed (`details.fields` holds per-field messages)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in / invalid credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Signed in, but the role does not allow this action",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found, or not visible to the caller (no existence oracle)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteAlertRule",
+        "tags": ["Alerts"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Delete (owners: any rule; members: their own)",
+        "description": "State-changing request: the `Origin` (or `Referer`) header must be the app’s own origin.",
+        "responses": {
+          "204": {
+            "description": "Deleted"
+          },
+          "401": {
+            "description": "Not signed in / invalid credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Signed in, but the role does not allow this action",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found, or not visible to the caller (no existence oracle)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{projectId}/incidents": {
+      "parameters": [
+        {
+          "name": "projectId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{24}$"
+          }
+        },
+        {
+          "name": "status",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "string",
+            "enum": ["firing", "resolved"]
+          }
+        },
+        {
+          "name": "limit",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "default": 50,
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          }
+        }
+      ],
+      "get": {
+        "operationId": "listIncidents",
+        "tags": ["Alerts"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Incidents, newest first",
+        "responses": {
+          "200": {
+            "description": "Incidents",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "incidents": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Incident"
+                      }
+                    }
+                  },
+                  "required": ["incidents"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed (`details.fields` holds per-field messages)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in / invalid credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found, or not visible to the caller (no existence oracle)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/incidents/{incidentId}": {
+      "parameters": [
+        {
+          "name": "incidentId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{24}$"
+          }
+        }
+      ],
+      "get": {
+        "operationId": "getIncident",
+        "tags": ["Alerts"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Incident detail",
+        "responses": {
+          "200": {
+            "description": "Incident",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "incident": {
+                      "$ref": "#/components/schemas/Incident"
+                    }
+                  },
+                  "required": ["incident"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in / invalid credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found, or not visible to the caller (no existence oracle)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/incidents/{incidentId}/deliveries": {
+      "parameters": [
+        {
+          "name": "incidentId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{24}$"
+          }
+        }
+      ],
+      "get": {
+        "operationId": "listDeliveries",
+        "tags": ["Alerts"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Notification attempts for the incident",
+        "responses": {
+          "200": {
+            "description": "Deliveries",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "deliveries": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Delivery"
+                      }
+                    }
+                  },
+                  "required": ["deliveries"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in / invalid credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found, or not visible to the caller (no existence oracle)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/organizations/{organizationId}/notification-destinations": {
+      "parameters": [
+        {
+          "name": "organizationId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{24}$"
+          }
+        }
+      ],
+      "get": {
+        "operationId": "listDestinations",
+        "tags": ["Notifications"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Webhook destinations (members); no secrets or full URLs",
+        "responses": {
+          "200": {
+            "description": "Destinations",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "destinations": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Destination"
+                      }
+                    }
+                  },
+                  "required": ["destinations"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in / invalid credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found, or not visible to the caller (no existence oracle)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createDestination",
+        "tags": ["Notifications"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Add a webhook destination (owners); the signing secret is shown once",
+        "description": "State-changing request: the `Origin` (or `Referer`) header must be the app’s own origin. Private, loopback, link-local, and metadata addresses are refused (SSRF).",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 80
+                  },
+                  "url": {
+                    "type": "string",
+                    "maxLength": 2048,
+                    "format": "uri"
+                  },
+                  "projectId": {
+                    "type": "string",
+                    "pattern": "^[a-f0-9]{24}$"
+                  }
+                },
+                "required": ["name", "url"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "destination": {
+                      "$ref": "#/components/schemas/Destination"
+                    },
+                    "signingSecret": {
+                      "type": "string",
+                      "pattern": "^whsec_"
+                    }
+                  },
+                  "required": ["destination", "signingSecret"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed (`details.fields` holds per-field messages)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in / invalid credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Signed in, but the role does not allow this action",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found, or not visible to the caller (no existence oracle)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/notification-destinations/{destinationId}": {
+      "parameters": [
+        {
+          "name": "destinationId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{24}$"
+          }
+        }
+      ],
+      "patch": {
+        "operationId": "updateDestination",
+        "tags": ["Notifications"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Rename, change URL, enable, or disable (owners)",
+        "description": "State-changing request: the `Origin` (or `Referer`) header must be the app’s own origin.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 80
+                  },
+                  "url": {
+                    "type": "string",
+                    "maxLength": 2048,
+                    "format": "uri"
+                  },
+                  "enabled": {
+                    "type": "boolean"
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "destination": {
+                      "$ref": "#/components/schemas/Destination"
+                    }
+                  },
+                  "required": ["destination"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed (`details.fields` holds per-field messages)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in / invalid credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Signed in, but the role does not allow this action",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found, or not visible to the caller (no existence oracle)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteDestination",
+        "tags": ["Notifications"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Delete (owners)",
+        "description": "State-changing request: the `Origin` (or `Referer`) header must be the app’s own origin.",
+        "responses": {
+          "204": {
+            "description": "Deleted"
+          },
+          "401": {
+            "description": "Not signed in / invalid credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Signed in, but the role does not allow this action",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found, or not visible to the caller (no existence oracle)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/notification-destinations/{destinationId}/test": {
+      "parameters": [
+        {
+          "name": "destinationId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{24}$"
+          }
+        }
+      ],
+      "post": {
+        "operationId": "testDestination",
+        "tags": ["Notifications"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "summary": "Send a labelled, signed test payload (owners; rate-limited)",
+        "description": "State-changing request: the `Origin` (or `Referer`) header must be the app’s own origin.",
+        "responses": {
+          "200": {
+            "description": "Attempt result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "result": {
+                      "type": "object",
+                      "properties": {
+                        "status": {
+                          "type": "string",
+                          "enum": ["success", "failed", "blocked"]
+                        },
+                        "responseStatus": {
+                          "type": "integer"
+                        },
+                        "errorSummary": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["status"]
+                    }
+                  },
+                  "required": ["result"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in / invalid credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Signed in, but the role does not allow this action",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found, or not visible to the caller (no existence oracle)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit or quota exceeded (`Retry-After` header)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/operator/health": {
+      "get": {
+        "operationId": "operatorHealth",
+        "tags": ["Operator"],
+        "security": [
+          {
+            "operatorToken": []
+          }
+        ],
+        "summary": "Platform health for the operator (not an organization role)",
+        "description": "Requires `Authorization: Bearer <OPERATOR_TOKEN>`. Returns 404 when no token is configured. Also served without a token at `/operator/health` on the internal listener. `/api/v1/operator/status` is an alias.",
+        "responses": {
+          "200": {
+            "description": "Report",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "report": {
+                      "type": "object"
+                    }
+                  },
+                  "required": ["report"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in / invalid credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found, or not visible to the caller (no existence oracle)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit or quota exceeded (`Retry-After` header)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/telemetry/test": {
+      "post": {
+        "operationId": "telemetryConnectionCheck",
+        "tags": ["Ingestion"],
+        "security": [
+          {
+            "ingestionKey": []
+          }
+        ],
+        "summary": "Verify an ingestion key without storing anything",
+        "responses": {
+          "200": {
+            "description": "Key is valid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "keyId": {
+                      "type": "string"
+                    },
+                    "project": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "environment": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["id", "name", "environment"]
+                    },
+                    "receivedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": ["ok", "keyId", "project", "receivedAt"]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in / invalid credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit or quota exceeded (`Retry-After` header)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/telemetry/batch": {
+      "post": {
+        "operationId": "ingestBatch",
+        "tags": ["Ingestion"],
+        "security": [
+          {
+            "ingestionKey": []
+          }
+        ],
+        "summary": "Ingest a batch of request metrics and logs",
+        "description": "Tenant fields in the body or headers are ignored: the key decides the organization and project. Subject to the organization’s daily quota (`429 QUOTA_EXCEEDED`, `Retry-After` until 00:00 UTC). Full contract: docs/ingestion-api.md.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TelemetryBatch"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Processed; per-record rejections are listed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IngestResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed (`details.fields` holds per-field messages)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in / invalid credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Payload too large",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit or quota exceeded (`Retry-After` header)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Backend rejected the request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A backend is unavailable or not configured",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "session": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "aop_sid",
+        "description": "HttpOnly session cookie set by register/login (`__Host-aop_sid` in production)."
+      },
+      "ingestionKey": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "Project ingestion key `aop_<keyId>.<secret>`; scope `telemetry:write` only."
+      },
+      "operatorToken": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "The deployment’s OPERATOR_TOKEN."
+      }
+    },
+    "schemas": {
+      "ErrorEnvelope": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "description": "Stable machine-readable code, e.g. `NOT_FOUND`."
+              },
+              "message": {
+                "type": "string",
+                "description": "Human-readable message."
+              },
+              "requestId": {
+                "type": "string",
+                "description": "Correlation ID; also logged server-side."
+              },
+              "details": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            },
+            "required": ["code", "message", "requestId"]
+          }
+        },
+        "required": ["error"]
+      },
+      "User": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          }
+        },
+        "required": ["id", "name", "email"]
+      },
+      "OrganizationSummary": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "enum": ["owner", "member"]
+          }
+        },
+        "required": ["id", "name", "slug", "role"]
+      },
+      "Project": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "organizationId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "environment": {
+            "type": "string",
+            "enum": ["development", "staging", "production"]
+          },
+          "lastTelemetryAt": {
+            "type": ["string", "null"],
+            "format": "date-time"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "organizationId",
+          "name",
+          "slug",
+          "environment",
+          "lastTelemetryAt",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "ApiKey": {
+        "type": "object",
+        "properties": {
+          "keyId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "prefix": {
+            "type": "string",
+            "description": "Non-secret display prefix."
+          },
+          "scopes": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": ["telemetry:write"]
+            }
+          },
+          "state": {
+            "type": "string",
+            "enum": ["active", "expiring", "revoked"]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "lastUsedAt": {
+            "type": ["string", "null"],
+            "format": "date-time"
+          },
+          "revokedAt": {
+            "type": ["string", "null"],
+            "format": "date-time"
+          },
+          "expiresAt": {
+            "type": ["string", "null"],
+            "format": "date-time"
+          },
+          "replacedBy": {
+            "type": ["string", "null"]
+          }
+        },
+        "required": [
+          "keyId",
+          "name",
+          "prefix",
+          "scopes",
+          "state",
+          "createdAt",
+          "lastUsedAt",
+          "revokedAt",
+          "expiresAt",
+          "replacedBy"
+        ]
+      },
+      "CreatedApiKey": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "$ref": "#/components/schemas/ApiKey"
+          },
+          "secret": {
+            "type": "string",
+            "description": "Full key `aop_<keyId>.<secret>`. Shown once, never again."
+          }
+        },
+        "required": ["key", "secret"]
+      },
+      "Readiness": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": ["ready", "degraded", "not_ready"]
+          },
+          "checkedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "dependencies": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "object",
+              "properties": {
+                "status": {
+                  "type": "string",
+                  "enum": ["up", "down", "not_configured"]
+                },
+                "latencyMs": {
+                  "type": "integer"
+                }
+              },
+              "required": ["status"]
+            }
+          }
+        },
+        "required": ["status", "checkedAt", "dependencies"]
+      },
+      "AlertRule": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "projectId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "metricKey": {
+            "type": "string",
+            "enum": ["error_rate", "p95_latency"]
+          },
+          "operator": {
+            "type": "string",
+            "enum": ["gt", "gte"]
+          },
+          "threshold": {
+            "type": "number",
+            "description": "Ratio (0–1) for error_rate; milliseconds for p95_latency."
+          },
+          "windowSeconds": {
+            "type": "integer"
+          },
+          "evaluationIntervalSeconds": {
+            "type": "integer"
+          },
+          "forEvaluations": {
+            "type": "integer"
+          },
+          "resolveAfterEvaluations": {
+            "type": "integer"
+          },
+          "serviceName": {
+            "type": ["string", "null"]
+          },
+          "notificationDestinationId": {
+            "type": ["string", "null"]
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "createdBy": {
+            "type": "string"
+          },
+          "lastState": {
+            "type": "string",
+            "enum": ["normal", "pending", "firing", "error"]
+          },
+          "lastEvaluatedAt": {
+            "type": ["string", "null"],
+            "format": "date-time"
+          },
+          "lastValue": {
+            "type": ["number", "null"],
+            "description": "null = no data in the window."
+          },
+          "lastError": {
+            "type": ["string", "null"]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "projectId",
+          "name",
+          "metricKey",
+          "operator",
+          "threshold",
+          "windowSeconds",
+          "evaluationIntervalSeconds",
+          "forEvaluations",
+          "resolveAfterEvaluations",
+          "serviceName",
+          "notificationDestinationId",
+          "enabled",
+          "createdBy",
+          "lastState",
+          "lastEvaluatedAt",
+          "lastValue",
+          "lastError",
+          "createdAt"
+        ]
+      },
+      "Incident": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "projectId": {
+            "type": "string"
+          },
+          "alertRuleId": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["firing", "resolved"]
+          },
+          "title": {
+            "type": "string"
+          },
+          "startedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "resolvedAt": {
+            "type": ["string", "null"],
+            "format": "date-time"
+          },
+          "lastTriggeredAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "lastValue": {
+            "type": ["number", "null"]
+          },
+          "ruleSnapshot": {
+            "type": "object",
+            "properties": {
+              "metricKey": {
+                "type": "string"
+              },
+              "operator": {
+                "type": "string"
+              },
+              "threshold": {
+                "type": "number"
+              },
+              "windowSeconds": {
+                "type": "integer"
+              }
+            },
+            "required": ["metricKey", "operator", "threshold", "windowSeconds"]
+          }
+        },
+        "required": [
+          "id",
+          "projectId",
+          "alertRuleId",
+          "status",
+          "title",
+          "startedAt",
+          "resolvedAt",
+          "lastTriggeredAt",
+          "lastValue",
+          "ruleSnapshot"
+        ]
+      },
+      "Delivery": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "destinationId": {
+            "type": "string"
+          },
+          "event": {
+            "type": "string",
+            "enum": ["incident_firing", "incident_resolved"]
+          },
+          "attempt": {
+            "type": "integer"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["success", "failed", "blocked"]
+          },
+          "responseStatus": {
+            "type": ["integer", "null"]
+          },
+          "startedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "finishedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "errorSummary": {
+            "type": ["string", "null"],
+            "description": "Safe summary; response bodies are never kept."
+          }
+        },
+        "required": [
+          "id",
+          "destinationId",
+          "event",
+          "attempt",
+          "status",
+          "responseStatus",
+          "startedAt",
+          "finishedAt",
+          "errorSummary"
+        ]
+      },
+      "Destination": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": ["webhook"]
+          },
+          "urlPreview": {
+            "type": "string",
+            "description": "Scheme and host only; the full URL is never returned."
+          },
+          "projectId": {
+            "type": ["string", "null"]
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": ["id", "name", "type", "urlPreview", "projectId", "enabled", "createdAt"]
+      },
+      "Meter": {
+        "type": "object",
+        "properties": {
+          "used": {
+            "type": "number"
+          },
+          "limit": {
+            "type": "number"
+          }
+        },
+        "required": ["used", "limit"]
+      },
+      "Usage": {
+        "type": "object",
+        "properties": {
+          "dayUtc": {
+            "type": "string",
+            "description": "YYYY-MM-DD (UTC)"
+          },
+          "resetsAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "plan": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": ["code", "name"]
+          },
+          "quota": {
+            "type": "object",
+            "properties": {
+              "records": {
+                "$ref": "#/components/schemas/Meter"
+              },
+              "bytes": {
+                "$ref": "#/components/schemas/Meter"
+              }
+            },
+            "required": ["records", "bytes"]
+          },
+          "rejected": {
+            "type": "object",
+            "properties": {
+              "records": {
+                "type": "integer"
+              },
+              "quotaRecords": {
+                "type": "integer"
+              }
+            },
+            "required": ["records", "quotaRecords"]
+          },
+          "resources": {
+            "type": "object",
+            "properties": {
+              "projects": {
+                "$ref": "#/components/schemas/Meter"
+              },
+              "alertRules": {
+                "$ref": "#/components/schemas/Meter"
+              }
+            },
+            "required": ["projects", "alertRules"]
+          },
+          "retention": {
+            "type": "object",
+            "properties": {
+              "metricsDays": {
+                "type": "integer"
+              },
+              "logsDays": {
+                "type": "integer"
+              }
+            },
+            "required": ["metricsDays", "logsDays"]
+          },
+          "projects": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "environment": {
+                  "type": "string"
+                },
+                "deleted": {
+                  "type": "boolean"
+                },
+                "acceptedRecords": {
+                  "type": "integer"
+                },
+                "acceptedBytes": {
+                  "type": "integer"
+                },
+                "rejectedRecords": {
+                  "type": "integer"
+                },
+                "quotaRejectedRecords": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "environment",
+                "deleted",
+                "acceptedRecords",
+                "acceptedBytes",
+                "rejectedRecords",
+                "quotaRejectedRecords"
+              ]
+            }
+          },
+          "history": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "dayUtc": {
+                  "type": "string"
+                },
+                "records": {
+                  "type": "integer"
+                },
+                "bytes": {
+                  "type": "integer"
+                }
+              },
+              "required": ["dayUtc", "records", "bytes"]
+            }
+          }
+        },
+        "required": [
+          "dayUtc",
+          "resetsAt",
+          "plan",
+          "quota",
+          "rejected",
+          "resources",
+          "retention",
+          "projects",
+          "history"
+        ]
+      },
+      "MetricSummary": {
+        "type": "object",
+        "properties": {
+          "range": {
+            "type": "string"
+          },
+          "requests": {
+            "type": ["number", "null"],
+            "description": "Approximate (`increase()` extrapolates)."
+          },
+          "requestRate": {
+            "type": ["number", "null"],
+            "description": "Requests per second."
+          },
+          "serverErrorRate": {
+            "type": ["number", "null"],
+            "description": "Ratio of 5xx responses."
+          },
+          "clientErrorRate": {
+            "type": ["number", "null"],
+            "description": "Ratio of 4xx responses."
+          },
+          "latencyMs": {
+            "type": "object",
+            "properties": {
+              "p50": {
+                "type": ["number", "null"]
+              },
+              "p95": {
+                "type": ["number", "null"]
+              },
+              "p99": {
+                "type": ["number", "null"]
+              }
+            },
+            "required": ["p50", "p95", "p99"]
+          },
+          "lastTelemetryAt": {
+            "type": ["string", "null"],
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "range",
+          "requests",
+          "requestRate",
+          "serverErrorRate",
+          "clientErrorRate",
+          "latencyMs",
+          "lastTelemetryAt"
+        ]
+      },
+      "MetricSeries": {
+        "type": "object",
+        "properties": {
+          "metricKey": {
+            "type": "string"
+          },
+          "unit": {
+            "type": "string"
+          },
+          "range": {
+            "type": "string"
+          },
+          "stepSeconds": {
+            "type": "integer"
+          },
+          "start": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "end": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "noData": {
+            "type": "boolean"
+          },
+          "series": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "labels": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                },
+                "points": {
+                  "type": "array",
+                  "items": {
+                    "type": "array",
+                    "prefixItems": [
+                      {
+                        "type": "number",
+                        "description": "Unix ms"
+                      },
+                      {
+                        "type": ["number", "null"]
+                      }
+                    ],
+                    "description": "`null` = no data (a gap, not zero)."
+                  }
+                }
+              },
+              "required": ["labels", "points"]
+            }
+          }
+        },
+        "required": [
+          "metricKey",
+          "unit",
+          "range",
+          "stepSeconds",
+          "start",
+          "end",
+          "noData",
+          "series"
+        ]
+      },
+      "LogEntry": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Stable entry ID within the result set."
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "severity": {
+            "type": "string"
+          },
+          "service": {
+            "type": "string"
+          },
+          "environment": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": ["string", "null"]
+          },
+          "attributes": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "required": [
+          "id",
+          "timestamp",
+          "severity",
+          "service",
+          "environment",
+          "message",
+          "requestId",
+          "attributes"
+        ]
+      },
+      "IngestResult": {
+        "type": "object",
+        "properties": {
+          "requestId": {
+            "type": "string"
+          },
+          "accepted": {
+            "type": "object",
+            "properties": {
+              "metrics": {
+                "type": "integer"
+              },
+              "logs": {
+                "type": "integer"
+              }
+            },
+            "required": ["metrics", "logs"]
+          },
+          "rejected": {
+            "type": "object",
+            "properties": {
+              "metrics": {
+                "type": "integer"
+              },
+              "logs": {
+                "type": "integer"
+              }
+            },
+            "required": ["metrics", "logs"]
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "signal": {
+                  "type": "string",
+                  "enum": ["metrics", "logs"]
+                },
+                "index": {
+                  "type": "integer"
+                },
+                "code": {
+                  "type": "string",
+                  "enum": ["INVALID_RECORD", "TIMESTAMP_OUT_OF_RANGE"]
+                },
+                "message": {
+                  "type": "string"
+                }
+              },
+              "required": ["signal", "index", "code", "message"]
+            }
+          }
+        },
+        "required": ["requestId", "accepted", "rejected", "errors"]
+      },
+      "TelemetryBatch": {
+        "type": "object",
+        "properties": {
+          "schemaVersion": {
+            "type": "number",
+            "const": 1
+          },
+          "service": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,62}$"
+              },
+              "environment": {
+                "type": "string",
+                "enum": ["development", "staging", "production"]
+              }
+            },
+            "required": ["name"]
+          },
+          "metrics": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "const": "http_request"
+                },
+                "timestamp": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "method": {
+                  "type": "string"
+                },
+                "route": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200,
+                  "pattern": "^\\/[^\\s?#]*$"
+                },
+                "statusCode": {
+                  "type": "integer",
+                  "minimum": 100,
+                  "maximum": 599
+                },
+                "durationMs": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 3600000
+                }
+              },
+              "required": ["kind", "timestamp", "method", "route", "statusCode", "durationMs"]
+            },
+            "default": []
+          },
+          "logs": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "timestamp": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "severity": {
+                  "type": "string",
+                  "enum": ["TRACE", "DEBUG", "INFO", "WARN", "ERROR", "FATAL"]
+                },
+                "message": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 8192
+                },
+                "requestId": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9_-]{1,64}$"
+                },
+                "attributes": {
+                  "type": "object",
+                  "propertyNames": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z_][A-Za-z0-9_.-]{0,63}$"
+                  },
+                  "additionalProperties": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 1024
+                      },
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "boolean"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                }
+              },
+              "required": ["timestamp", "severity", "message"]
+            },
+            "default": []
+          }
+        },
+        "required": ["schemaVersion", "service"],
+        "description": "At most 500 records in total and 1 MiB per request."
+      }
+    }
+  }
+}

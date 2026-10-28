@@ -1,0 +1,71 @@
+# Short-duration retention profile (PRD RET-003, AC-11). Same multi-tenant setup as
+# infra/loki/loki.yaml, but retention, compaction, and flushing run on a scale of minutes so
+# deletion can be observed in one test run. Used only by scripts/check-retention.mjs.
+auth_enabled: true
+
+server:
+  http_listen_port: 3100
+  grpc_listen_port: 9096
+  log_level: warn
+
+common:
+  instance_addr: 127.0.0.1
+  path_prefix: /loki
+  storage:
+    filesystem:
+      chunks_directory: /loki/chunks
+      rules_directory: /loki/rules
+  replication_factor: 1
+  ring:
+    kvstore:
+      store: inmemory
+
+schema_config:
+  configs:
+    - from: 2024-01-01
+      store: tsdb
+      object_store: filesystem
+      schema: v13
+      index:
+        prefix: index_
+        period: 24h
+
+ingester:
+  # Cut and flush chunks quickly so they reach storage (retention applies to stored chunks).
+  chunk_idle_period: 30s
+  max_chunk_age: 1m
+  flush_check_period: 5s
+  # On shutdown, flush everything and ship the TSDB index instead of keeping it in a WAL to
+  # replay. The check restarts Loki once so the compactor sees the index without waiting for
+  # the 15-minute index rotation.
+  wal:
+    enabled: false
+    flush_on_shutdown: true
+
+limits_config:
+  # Loki's minimum retention period is 24h; records are written 2–3 days in the past so they
+  # are already beyond it.
+  retention_period: 24h
+  allow_structured_metadata: true
+  reject_old_samples: true
+  reject_old_samples_max_age: 168h
+  max_query_length: 721h
+
+# No query caching: the check must read what is in storage now, not a cached earlier answer.
+query_range:
+  cache_results: false
+chunk_store_config:
+  chunk_cache_config:
+    embedded_cache:
+      enabled: false
+
+compactor:
+  working_directory: /loki/compactor
+  retention_enabled: true
+  compaction_interval: 30s
+  retention_delete_delay: 30s
+  retention_delete_worker_count: 10
+  delete_request_store: filesystem
+
+analytics:
+  reporting_enabled: false

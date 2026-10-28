@@ -25,6 +25,10 @@
     "infra:up": "docker compose -f infra/compose.yaml up -d",
     "infra:down": "docker compose -f infra/compose.yaml down",
     "infra:logs": "docker compose -f infra/compose.yaml logs -f",
+    "test:e2e": "npm run e2e -w @aop/api",
+    "check:exposure": "node scripts/check-exposure.mjs",
+    "check:retention": "node scripts/check-retention.mjs",
+    "scan:secrets": "node scripts/scan-secrets.mjs",
     "check": "npm run lint && npm run typecheck && npm run test"
   },
   "devDependencies": {

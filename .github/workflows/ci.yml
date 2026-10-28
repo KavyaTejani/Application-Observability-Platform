@@ -1,0 +1,43 @@
+# Continuous integration: lint, type-check, the full unit + integration suite against real
+# MongoDB, Redis, and Loki (the same images as local development), the production build and
+# image, and the secret scan. The E2E and load tests need a running stack and are run manually
+# (npm run test:e2e, npm run loadtest -w @aop/api).
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Start backends (MongoDB, Redis, Loki)
+        run: docker compose -f infra/compose.yaml up -d --wait mongodb redis loki
+
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run format:check
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - run: npm run scan:secrets
+
+      - name: Build the production image
+        run: docker build -t aop-app:ci .
+
+      - name: Backend logs on failure
+        if: failure()
+        run: docker compose -f infra/compose.yaml logs --tail=100

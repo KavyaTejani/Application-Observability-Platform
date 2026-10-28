@@ -1,0 +1,17 @@
+# Throwaway Loki with the short-duration retention profile, used by `npm run check:retention`.
+# Separate from the development stack (own port and volume), so the check never deletes real data.
+name: aop-retention-test
+
+services:
+  loki:
+    image: grafana/loki:3.5.0
+    command: ['-config.file=/etc/loki/loki.yaml']
+    volumes:
+      - ./loki.retention-test.yaml:/etc/loki/loki.yaml:ro
+      # Survives the restart the check performs; removed by `down -v` afterwards.
+      - retention-data:/loki
+    ports:
+      - '127.0.0.1:3101:3100'
+
+volumes:
+  retention-data:

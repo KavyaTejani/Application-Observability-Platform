@@ -22,8 +22,14 @@ export default tseslint.config(
     rules: reactHooks.configs.recommended.rules,
   },
   {
-    // Test files and scripts may use console output for diagnostics.
-    files: ['**/*.test.ts', 'scripts/**', 'apps/*/src/scripts/**'],
+    // Tests, E2E/load harnesses, and scripts may use console output for diagnostics.
+    files: [
+      '**/*.test.ts',
+      'scripts/**',
+      'apps/*/src/scripts/**',
+      'apps/api/src/e2e/**',
+      'apps/api/src/loadtest/**',
+    ],
     rules: { 'no-console': 'off', '@typescript-eslint/no-non-null-assertion': 'off' },
   },
 );

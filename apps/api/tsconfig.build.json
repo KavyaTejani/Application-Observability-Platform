@@ -1,6 +1,6 @@
 {
   "extends": "./tsconfig.json",
-  "exclude": ["src/**/*.test.ts", "src/test"],
+  "exclude": ["src/**/*.test.ts", "src/test", "src/e2e", "src/loadtest"],
   "compilerOptions": {
     "customConditions": []
   }

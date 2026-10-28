@@ -9,7 +9,10 @@
     "start": "node dist/server.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "seed:demo": "tsx --conditions=source --env-file-if-exists=../../.env src/scripts/seed-demo.ts",
-    "plan:set": "tsx --conditions=source --env-file-if-exists=../../.env src/scripts/set-plan.ts"
+    "plan:set": "tsx --conditions=source --env-file-if-exists=../../.env src/scripts/set-plan.ts",
+    "openapi": "tsx --conditions=source src/scripts/openapi.ts",
+    "e2e": "tsx --conditions=source src/e2e/full-flow.e2e.ts",
+    "loadtest": "tsx --conditions=source src/loadtest/ingest-load.ts"
   },
   "dependencies": {
     "@aop/validation": "^0.1.0",
