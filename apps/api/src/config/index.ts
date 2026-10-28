@@ -47,7 +47,27 @@ const envSchema = z.object({
   // Deadline for every call to Loki/Prometheus.
   BACKEND_TIMEOUT_MS: z.coerce.number().int().min(100).max(30_000).default(5000),
 
+  // Alert evaluation and notification worker (runs in the API process unless disabled).
+  ALERT_WORKER_ENABLED: booleanFromString.default(true),
+  ALERT_TICK_MS: z.coerce.number().int().min(1000).max(60_000).default(5000),
+  WEBHOOK_TIMEOUT_MS: z.coerce.number().int().min(500).max(30_000).default(5000),
+  // Development only: lets webhooks reach private/loopback addresses (a local receiver).
+  // Refused in production, where it would re-open the SSRF hole.
+  WEBHOOK_ALLOW_PRIVATE_NETWORKS: booleanFromString.default(false),
+  // Key material for encrypting webhook signing secrets at rest. Falls back to SESSION_SECRET.
+  WEBHOOK_ENCRYPTION_KEY: z.string().min(32).optional(),
+
   HEALTH_CHECK_TIMEOUT_MS: z.coerce.number().int().min(100).max(10_000).default(2000),
+
+  // How long an organization's plan limits are cached on the ingestion path.
+  PLAN_CACHE_TTL_SECONDS: z.coerce.number().int().min(0).max(600).default(30),
+
+  // Bearer token for the operator health view on the public port (PRD §12.8). Unset disables
+  // that route; the internal listener serves the same report without it.
+  OPERATOR_TOKEN: z.preprocess(
+    (value) => (value === '' ? undefined : value),
+    z.string().min(32, 'OPERATOR_TOKEN must be at least 32 characters').optional(),
+  ),
 });
 
 export type AppConfig = Readonly<{
@@ -68,9 +88,18 @@ export type AppConfig = Readonly<{
   sessionSecret: string;
   telemetryKeyPepper: string;
   healthCheckTimeoutMs: number;
+  planCacheTtlMs: number;
+  operatorToken: string | undefined;
   apiKeyCacheTtlMs: number;
   cardinality: Readonly<{ maxRoutesPerProject: number; maxServicesPerProject: number }>;
   backendTimeoutMs: number;
+  alerts: Readonly<{
+    workerEnabled: boolean;
+    tickMs: number;
+    webhookTimeoutMs: number;
+    allowPrivateNetworks: boolean;
+    encryptionKey: string;
+  }>;
   session: Readonly<{ idleTtlMs: number; absoluteTtlMs: number; cookieName: string }>;
   /** Origins allowed to send state-changing, cookie-authenticated requests (CSRF defence). */
   allowedOrigins: readonly string[];
@@ -96,9 +125,14 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env): AppConfig {
   const env = parsed.data;
 
   if (env.NODE_ENV === 'production') {
-    const placeholders = (['SESSION_SECRET', 'TELEMETRY_KEY_PEPPER'] as const).filter((name) =>
-      PLACEHOLDER_PATTERN.test(env[name]),
-    );
+    const placeholders = (
+      ['SESSION_SECRET', 'TELEMETRY_KEY_PEPPER', 'OPERATOR_TOKEN'] as const
+    ).filter((name) => PLACEHOLDER_PATTERN.test(env[name] ?? ''));
+    if (env.WEBHOOK_ALLOW_PRIVATE_NETWORKS) {
+      throw new ConfigError([
+        'WEBHOOK_ALLOW_PRIVATE_NETWORKS: must not be enabled in production (SSRF protection)',
+      ]);
+    }
     if (placeholders.length > 0) {
       throw new ConfigError(
         placeholders.map(
@@ -126,12 +160,21 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env): AppConfig {
     sessionSecret: env.SESSION_SECRET,
     telemetryKeyPepper: env.TELEMETRY_KEY_PEPPER,
     healthCheckTimeoutMs: env.HEALTH_CHECK_TIMEOUT_MS,
+    planCacheTtlMs: env.PLAN_CACHE_TTL_SECONDS * 1000,
+    operatorToken: env.OPERATOR_TOKEN,
     apiKeyCacheTtlMs: env.API_KEY_CACHE_TTL_SECONDS * 1000,
     cardinality: Object.freeze({
       maxRoutesPerProject: env.MAX_ROUTES_PER_PROJECT,
       maxServicesPerProject: env.MAX_SERVICES_PER_PROJECT,
     }),
     backendTimeoutMs: env.BACKEND_TIMEOUT_MS,
+    alerts: Object.freeze({
+      workerEnabled: env.ALERT_WORKER_ENABLED,
+      tickMs: env.ALERT_TICK_MS,
+      webhookTimeoutMs: env.WEBHOOK_TIMEOUT_MS,
+      allowPrivateNetworks: env.WEBHOOK_ALLOW_PRIVATE_NETWORKS,
+      encryptionKey: env.WEBHOOK_ENCRYPTION_KEY ?? env.SESSION_SECRET,
+    }),
     session: Object.freeze({
       idleTtlMs: env.SESSION_IDLE_TTL_MINUTES * 60_000,
       absoluteTtlMs: env.SESSION_ABSOLUTE_TTL_HOURS * 3_600_000,
