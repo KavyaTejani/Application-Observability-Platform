@@ -3,8 +3,8 @@ import { Button, RoleBadge } from '../components/ui';
 import { useLogout, useMe } from '../lib/auth';
 
 /**
- * Signed-in shell: organization switcher, navigation, and account menu. Navigation lists only
- * features that exist; later milestones add Projects, Metrics, Logs, Alerts, and Usage here.
+ * Signed-in shell: organization switcher, navigation, and account menu. Project-level features
+ * (dashboard, logs, alerts) live under each project.
  */
 export function AppLayout() {
   const me = useMe();
@@ -73,6 +73,16 @@ export function AppLayout() {
             <li>
               <NavLink to={`/orgs/${current.id}/projects`} className={navItem}>
                 Projects
+              </NavLink>
+            </li>
+            <li>
+              <NavLink to={`/orgs/${current.id}/notifications`} className={navItem}>
+                Notifications
+              </NavLink>
+            </li>
+            <li>
+              <NavLink to={`/orgs/${current.id}/usage`} className={navItem}>
+                Usage
               </NavLink>
             </li>
             <li>

@@ -4,8 +4,8 @@ A developer-facing SaaS for monitoring Node.js applications: collect request met
 structured logs with a TypeScript SDK, explore them in dashboards and a log search, and get
 alerted (with deduplicated incidents and webhooks) when error rate or latency crosses a threshold.
 
-> **Status:** under active development. Milestones **M1–M5** (foundations, identity and tenancy, projects and keys, SDK
-> and ingestion, metrics and logs exploration) are complete. See
+> **Status:** under active development. Milestones **M1–M6** (foundations, identity and tenancy, projects and keys, SDK
+> and ingestion, metrics and logs exploration, alerts and incidents) are complete. See
 > [`docs/implementation-checklist.md`](docs/implementation-checklist.md) for verified progress.
 > Features below are listed only once they work.
 
@@ -53,6 +53,25 @@ time window.
 - **Log explorer:** search by time range, severity, service, request ID, and case-insensitive text.
   Results are newest first, with "load older" pagination, a detail panel, and "show all logs for this
   request". Filters live in the URL, so a search can be shared.
+- **Alerts and incidents:** rules on server error rate or p95 latency, with a threshold, a window,
+  "fire after N" and "resolve after M" consecutive checks, and an optional service filter. A
+  background evaluator moves each rule through normal → pending → firing. One continuous breach
+  opens exactly one incident (enforced by a database index), which resolves after M clean checks.
+  Windows with no traffic never fire, and a failed metrics query sets the rule to "error" without
+  touching incidents.
+- **Webhook notifications:** signed (`X-AOP-Signature`, HMAC-SHA-256) firing and resolved events,
+  sent once per incident with retries and backoff. Every attempt is recorded on the incident page.
+  **SSRF protection:** private, loopback, link-local, and metadata addresses are blocked on save
+  and on every send. Connections are pinned to the validated IP (DNS rebinding) and redirects are
+  never followed.
+- **Usage quotas:** each organization's plan sets a daily limit on telemetry records and bytes
+  (UTC days). The limit is enforced atomically, so concurrent batches cannot exceed it. Over-limit
+  batches get `429 QUOTA_EXCEEDED` with `Retry-After` until the reset, and failed writes never
+  use quota. The **Usage** page shows used against allowed, the reset time, a per-project
+  breakdown, plan limits, and the last 7 days.
+- **Operator health** (`/operator`, protected by `OPERATOR_TOKEN`, separate from customer
+  accounts): dependency status, alert worker, ingestion accepted/rejected counts, quota
+  rejections, backend failures, webhook attempts, and platform-wide state.
 - **Safe query model:** the browser never sends PromQL or LogQL. It sends allow-listed descriptors
   (strict schemas reject unknown fields), and the server generates every query with the caller's
   organization and project.
@@ -112,6 +131,11 @@ Open <http://localhost:5173> and create an account. System status is at `/status
 `owner@demo.local` (owner) and `member@demo.local` (member). Both use the password
 `demo-password-2026`, or the value of `DEMO_PASSWORD` if it is set. Run this in development only.
 
+**Trying the quota:** `npm run plan:set -w @aop/api -- --org owner@demo.local --plan tiny
+--events-per-day 300` moves the demo organization to a small plan (the API applies it within
+30 s). `--plan developer` moves it back. **Operator view:** set `OPERATOR_TOKEN` in `.env`, then
+open `/operator` and paste the token.
+
 | Command                                 | Purpose                                   |
 | --------------------------------------- | ----------------------------------------- |
 | `npm run check`                         | Lint, type-check, and run all tests       |
@@ -129,7 +153,11 @@ other machines.
    `AOP_API_KEY`.
 3. Run `npm run start -w @aop/demo-node-service`. It prints the project it connected to.
 4. Generate traffic with `npm run traffic -w @aop/demo-node-service` (about 5 req/s for 60 s).
-5. Open the project in the web app. The **Dashboard** tab shows the metrics, which appear
+5. Optional alert demo: add `WEBHOOK_ALLOW_PRIVATE_NETWORKS=true` to your local `.env`
+   (development only) and run `npm run webhook-receiver -w @aop/demo-node-service` with
+   `WEBHOOK_SIGNING_SECRET` set. Add `http://localhost:5050/hook` under **Notifications**, create
+   an "error rate > 10%" rule, and run a second demo store with `DEMO_ERROR_RATE=0.9` to watch it fire.
+6. Open the project in the web app. The **Dashboard** tab shows the metrics, which appear
    within about 30 s (the scrape interval, plus one scrape for new series), and the **Logs** tab
    shows the logs immediately.
 
@@ -162,7 +190,17 @@ The API refuses to start, with a clear message, if a variable is missing or inva
 | `POST /api/v1/projects/:projectId/metrics/query` | Time series for `{ metricKey, range, interval?, filters?, groupBy? }` (members) |
 | `GET /api/v1/projects/:projectId/logs` | Log search: `from, to, severity, service, requestId, contains, limit, cursor` (members) |
 | `GET /api/v1/projects/:projectId/services` | Service names seen in metrics or logs (filter options) |
+| `GET, POST /api/v1/projects/:projectId/alert-rules` | List (members) / create (members, with an existing destination) |
+| `PATCH, DELETE /api/v1/alert-rules/:alertRuleId` | Edit / delete (owners: any rule; members: their own) |
+| `GET /api/v1/projects/:projectId/incidents?status=` | Incidents, newest first |
+| `GET /api/v1/incidents/:incidentId` (`/deliveries`) | Incident detail / notification attempts |
+| `GET, POST /api/v1/organizations/:organizationId/notification-destinations` | List (members) / create (owners; signing secret shown once) |
+| `PATCH, DELETE /api/v1/notification-destinations/:destinationId` (`/test`) | Manage / send a test payload (owners) |
+| `GET /api/v1/organizations/:organizationId/usage` | Today's quota use, per-project breakdown, plan limits, 7-day history (members) |
+| `GET /api/v1/operator/health` | Operator report (`Authorization: Bearer <OPERATOR_TOKEN>`; 404 if unset) |
+| `GET :9464/operator/health`  | Same report on the internal listener, no token            |
 | `POST /v1/telemetry/test`    | Verify an ingestion key (`Authorization: Bearer <key>`)   |
+| `POST /v1/telemetry/batch`   | Ingest a batch ([contract](docs/ingestion-api.md)); daily quota applies |
 
 All `/api/v1` errors use one envelope: `{ "error": { "code", "message", "requestId", "details" } }`.
 State-changing requests must come from the app's own origin (CSRF protection).

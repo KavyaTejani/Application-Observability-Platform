@@ -55,7 +55,18 @@ secrets _(M6)_, and server secrets (`SESSION_SECRET`, `TELEMETRY_KEY_PEPPER`).
 | Cross-tenant log queries | `X-Scope-OrgID` is set from the scope (a browser-sent header is ignored; tested with real Loki), plus a mandatory `project` matcher. Text search is regex-escaped inside a raw string; backticks are refused. | `modules/query/logql.ts`, `backend-clients.ts` |
 | Expensive / unbounded queries | Fixed ranges; ≤ 1000 points per series; log span ≤ 24 h, lookback ≤ 7 d, limit ≤ 200; validated cursors; 240 queries/min per user; backend timeouts | `queries.ts`, `query.routes.ts` |
 | Backend details in errors | Query failures map to generic `503 QUERY_BACKEND_UNAVAILABLE` / `502 QUERY_FAILED`. Details are logged server-side only. | `backend-clients.ts` |
+| Webhook SSRF (reaching internal services or cloud metadata) | Scheme allow-list; no URL credentials; every resolved address is checked against private/loopback/link-local/metadata/CGNAT/multicast/ULA/IPv4-mapped/NAT64 ranges (`net.BlockList`), on save and on every send; the socket is pinned to the validated IP; redirects are never followed; dev-only override refused in production | `alerts/ssrf.ts`, `webhook-client.ts`, `config/index.ts` |
+| DNS rebinding | Re-resolution at send time plus IP pinning through a custom `lookup`, so the address that was checked is the address that is used (tested) | `webhook-client.ts` |
+| Forged webhooks to customers | HMAC-SHA-256 signature over `timestamp.body` with a per-destination secret, so receivers can verify origin and reject replays | `secret-box.ts`, `notifier.ts` |
+| Secret exposure via destinations | The signing secret is shown once, stored with AES-256-GCM (HKDF-derived key). The URL is never returned (only a preview), since paths often contain tokens. Delivery records hold only a status and a safe summary, never response bodies. | `alert.service.ts`, `alert.models.ts` |
+| Duplicate incidents / notification storms | A partial unique index allows one firing incident per rule; outbox jobs are unique per (incident, destination, event); evaluation leases | `alert.models.ts`, `alert-evaluator.ts` |
+| Alert queries escaping tenant scope | Scope comes from the rule record; the expression is built by the same generator as the dashboards | `alert-evaluator.ts` |
+| Notification failures hiding incidents | Delivery is separate from incident state; failures are retried, recorded, and counted (`aop_notification_attempts_total`) | `notifier.ts` |
 | Plan-limit bypass by racing | Project slots are reserved with a conditional atomic `$inc`, and released if the insert fails | `project.service.ts` |
+| Ingestion quota bypass by concurrency | The daily quota is reserved with one conditional atomic `$inc` on the organization's day counter (`records <= limit - n`), so parallel batches cannot together exceed it (tested with 20 concurrent batches) | `usage/quota.service.ts` |
+| Quota consumed by failed writes | The reservation is released when the forward fails; a crash in between only overcounts (fails safe) | `quota.service.ts`, `ingest.service.ts` |
+| Quota bypass during a database outage | Ingestion fails closed with a retryable `503 QUOTA_UNAVAILABLE`; it never admits unchecked traffic | `quota.service.ts` |
+| Operator view exposed to customers | Not an organization role: it needs `OPERATOR_TOKEN` (bearer, SHA-256 + constant-time compare, rate-limited per IP); a customer session grants nothing; without the token configured the public route returns 404. The internal listener serves it on the private network only. The report holds aggregates only, no tenant names, emails, or IDs (tested). | `operator/operator.routes.ts`, `operator.service.ts` |
 
 ## Known limitations (accepted for the MVP)
 
@@ -88,6 +99,22 @@ secrets _(M6)_, and server secrets (`SESSION_SECRET`, `TELEMETRY_KEY_PEPPER`).
     and on generated matchers. Arbitrary PromQL would need a multi-tenant backend such as Mimir
     (PRD §2.3).
 
+12. **Webhook egress is not network-restricted.** SSRF defence is application-level. A production
+    deployment should also restrict outbound traffic at the network layer (defence in depth).
+13. **The alert rule limit uses count-then-insert.** A narrow race could exceed the plan's rule
+    limit by one or two. This is acceptable because rule creation is low-rate and authenticated.
+14. **The encryption key falls back to `SESSION_SECRET`** when `WEBHOOK_ENCRYPTION_KEY` is unset.
+    Rotating the session secret would then make stored signing secrets unreadable; set a
+    dedicated key in production.
+
+15. **The operator token is a single shared secret.** There are no per-operator accounts or audit
+    trail. It should be long and random, sent only over HTTPS, and rotated by changing the
+    environment variable.
+16. **Operator counters are per instance.** They reset on restart, and with several instances each
+    reports its own. Prometheus (scraping every instance) holds the aggregate history.
+17. **Quota granularity is the batch.** A batch that does not fit is refused whole, so an
+    organization can stop slightly below its limit.
+
 ## Planned
 
-- Webhook SSRF protection _(M6)_; quotas _(M7)_; the full isolation suite _(M8)_
+- The full isolation suite and backend-port exposure checks _(M8)_

@@ -161,13 +161,74 @@ behaved correctly on demo-store data. A raw-PromQL request was rejected with 400
 **Known approximations (documented in the UI):** latency percentiles come from histogram buckets;
 the request total uses `increase()`, which extrapolates (shown as "≈").
 
-## M6 — Alerts and incidents
+## M6 — Alerts and incidents ✅
 
-- [ ] Rule CRUD, evaluator, incident lifecycle with dedupe, webhook worker with SSRF protection
+- [x] Rule CRUD: create, enable/disable, edit, delete; `error_rate`/`p95_latency`; `gt`/`gte`
+      only; threshold, window, and interval bounds; window ≥ 2 scrapes and ≥ interval
+      (ALERT-001 to ALERT-003)
+- [x] RBAC: members create rules with existing destinations and edit only their own; owners
+      manage all rules and destinations (ORG-003)
+- [x] Evaluator: lease-based claiming (safe across instances); query scope from the rule record
+      only; window = rate window (ALERT-004)
+- [x] Pure state machine: normal → pending → firing → normal; no data = non-breaching; query
+      error → `error`, incidents untouched; resolve after M consecutive OKs (ALERT-005,
+      ALERT-011)
+- [x] One open incident per rule: partial unique index `{alertRuleId, fingerprint}` where
+      `status: firing`; tested with two racing evaluators (ALERT-006)
+- [x] Outbox jobs deduplicated per (incident, destination, event); firing and resolved events;
+      retries 30 s / 2 min / 10 min / 30 min; permanent failures not retried; every attempt
+      recorded (ALERT-007, ALERT-008)
+- [x] SSRF: scheme allow-list; no credentials; every DNS answer checked against private,
+      loopback, link-local/metadata, CGNAT, multicast, ULA, mapped and NAT64 ranges; IP pinning
+      (rebinding-proof); no redirects; timeouts; payload and response caps; checked on save and
+      on send; dev-only override refused in production
+- [x] HMAC-signed payloads (`t=…,v1=…`); per-destination secret shown once, stored with
+      AES-256-GCM; URL preview hides path tokens
+- [x] UI: Alerts tab (rules with icon+text state, incidents), incident detail with delivery
+      attempts, Notifications page (destinations, one-time secret, test send)
+- [x] Demo webhook receiver that verifies signatures; platform metrics for evaluations and
+      notification attempts
+- [x] Isolation: A cannot list, create, edit, or delete B's rules; cannot read B's incidents or
+      deliveries; cannot list, edit, delete, or test B's destinations (§14.2 item 1)
 
-## M7 — Quotas and self-monitoring
+**Verification (2026-10-28):** lint, type-check, and build clean; `npm test` 305/305 passed.
+Real-HTTP tests: the signature verified receiver-side, a 302 was not followed, and DNS rebinding
+to 127.0.0.1 was blocked before connecting. **Live stack:** demo store at a 90% checkout failure
+rate → rule pending (15.9%) → firing (14.4%) → 6 breaching evaluations → 1 incident → traffic
+stopped → resolved after 2 no-data checks. The receiver got exactly 2 webhooks (firing, resolved),
+both with valid signatures.
 
-- [ ] Atomic quota enforcement with `429`; usage screen; operator health view
+**Deferred (documented):** manual incident resolution (no defined semantics in the PRD);
+email/SMTP notifications (P1).
+
+## M7 — Quotas and self-monitoring ✅
+
+- [x] Daily per-organization quota on records and estimated bytes, in UTC days; per-project
+      accepted/rejected counters in `usageDaily` (QUOTA-001, §11.8)
+- [x] Plan limits read from the organization's plan (cached `PLAN_CACHE_TTL_SECONDS`); projects
+      and alert rules already enforced against the same plan (QUOTA-002)
+- [x] Atomic reservation with a conditional `$inc` before forwarding; released when the forward
+      fails; fails closed (`503 QUOTA_UNAVAILABLE`) if MongoDB is unreachable (QUOTA-003)
+- [x] `429 QUOTA_EXCEEDED` with `Retry-After` (seconds to 00:00 UTC), `resetsAt`, used/allowed;
+      SDK drops instead of retrying (QUOTA-004)
+- [x] Usage page: meters with near-limit/limit-reached text, reset time, quota-exceeded
+      explanation, per-project table, plan limits, retention (read-only), last 7 days
+      (QUOTA-005)
+- [x] Platform metrics: `aop_quota_rejections_total{limit}`, `aop_ingest_bytes_total{signal}`, plus
+      the existing request, ingestion, backend, alert, and notification counters (SELF-002, §15)
+- [x] Operator health: `GET /api/v1/operator/health` (bearer `OPERATOR_TOKEN`; 404 when unset),
+      `/operator/health` on the internal listener, and a `/operator` web view: dependencies,
+      alert worker, pipeline counters, platform state (SELF-004, AC-10)
+- [x] `npm run plan:set -w @aop/api` moves an organization to a plan with custom limits (demos,
+      quota tests, the raised-quota load-test profile)
+
+**Verification (2026-10-28):** lint, type-check, and build clean; `npm test` 321/321 passed.
+Tests cover the limit boundary (an exact fit is accepted), the byte limit, 20 concurrent batches
+against a limit of 10 batches (exactly 10 accepted), release on Loki failure, UTC rollover, the
+usage API's RBAC, and operator token handling. **Live stack:** demo org on a 300-record plan;
+traffic for 35 s → 268 records accepted, 446 refused with `QUOTA_EXCEEDED`, and the SDK
+dropped them without retry storms. Operator report showed the quota rejections and the same
+usage total.
 
 ## M8 — Hardening and delivery
 

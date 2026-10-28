@@ -36,7 +36,7 @@ It is rate-limited to 30 requests per minute per key.
 ## `POST /v1/telemetry/batch`
 
 `Content-Type: application/json`. It is rate-limited to 300 requests per 10 s per key
-(`429 RATE_LIMITED` with `Retry-After`). Daily usage quotas are added in milestone M7.
+(`429 RATE_LIMITED` with `Retry-After`), and subject to the organization's daily quota (below).
 
 ### Request
 
@@ -89,9 +89,11 @@ also removed from messages and string values.
 | `401` | `INVALID_API_KEY` | Key missing, malformed, revoked, or expired | No |
 | `413` | `BATCH_TOO_LARGE` / `PAYLOAD_TOO_LARGE` | Over 500 records / over 1 MiB | No (split the batch) |
 | `429` | `RATE_LIMITED` | Too many requests for this key; see `Retry-After` | Yes |
+| `429` | `QUOTA_EXCEEDED` | The organization's daily quota would be exceeded; `Retry-After` = seconds until 00:00 UTC (`details.retryable: false`) | Not before the reset |
 | `502` | `BACKEND_WRITE_FAILED` | Log storage permanently rejected the batch (`details.retryable: false`) | No |
 | `503` | `BACKEND_WRITE_FAILED` | Log storage temporarily unavailable (`Retry-After: 5`, `details.retryable: true`) | Yes |
 | `503` | `BACKEND_NOT_CONFIGURED` | This deployment has no storage for that signal (`details.retryable: false`) | No |
+| `503` | `QUOTA_UNAVAILABLE` | Usage limits could not be checked (database unreachable); nothing was recorded | Yes |
 
 Successful response (partial acceptance):
 
@@ -121,6 +123,33 @@ record's position in its array.
 - **All or nothing on backend failure.** If the log write fails, *nothing* from the request is
   recorded, metrics included, so a client can safely retry the whole batch without
   double counting.
+
+### Daily quota
+
+Each organization's plan sets a daily limit on telemetry **records** and estimated ingested
+**bytes** (the serialized JSON size of each accepted record). The Developer plan allows
+250 000 records and 250 MiB per UTC day. Windows are UTC calendar days and reset at 00:00 UTC.
+
+- Only **valid** records count. Records rejected individually (400-class reasons) never use quota.
+- A batch is admitted or refused **whole**. If its valid records would take the organization over
+  either limit, the request fails with `429 QUOTA_EXCEEDED` and nothing is stored. A smaller
+  batch may still fit.
+- Quota is reserved before forwarding and released if the forward fails, so a `503` never uses
+  quota and a retry is not double-counted.
+- Concurrent batches cannot exceed the limit together: the reservation is one conditional
+  atomic update in MongoDB.
+
+```json
+429 Retry-After: 30512
+{ "error": { "code": "QUOTA_EXCEEDED",
+  "message": "The organization's daily limit of 250000 telemetry records has been reached. It resets at 00:00 UTC.",
+  "details": { "limit": "records", "used": 249980, "allowed": 250000, "batch": 50,
+               "resetsAt": "2026-10-29T00:00:00.000Z", "retryAfterSeconds": 30512, "retryable": false } } }
+```
+
+The Node SDK drops a batch refused this way (counted in `stats().dropped.nonRetryable` and
+reported through `onError`) instead of retrying for hours. Usage is visible to organization
+members on the **Usage** page and at `GET /api/v1/organizations/:id/usage`.
 
 ## Stored representation
 

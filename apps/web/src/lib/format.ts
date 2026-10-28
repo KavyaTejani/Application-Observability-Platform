@@ -54,3 +54,15 @@ export const formatPercent = (ratio: number) =>
 
 export const formatMs = (ms: number) =>
   ms >= 1000 ? `${formatNumber(ms / 1000)} s` : `${Math.round(ms)} ms`;
+
+/** Binary units (KiB, MiB), matching how plan limits are defined. */
+export function formatBytes(bytes: number): string {
+  const units = ['B', 'KiB', 'MiB', 'GiB'];
+  let value = bytes;
+  let unit = 0;
+  while (value >= 1024 && unit < units.length - 1) {
+    value /= 1024;
+    unit += 1;
+  }
+  return `${new Intl.NumberFormat(undefined, { maximumFractionDigits: unit === 0 ? 0 : 1 }).format(value)} ${units[unit]}`;
+}

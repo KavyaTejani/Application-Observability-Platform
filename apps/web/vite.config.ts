@@ -21,5 +21,15 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     sourcemap: true,
+    rollupOptions: {
+      output: {
+        // Content blockers filter script URLs with tracking-style words, even first-party ones,
+        // so shared chunks named after such modules get a neutral name.
+        chunkFileNames: (chunk) =>
+          /telemetry|metrics|analytics|track|beacon/i.test(chunk.name)
+            ? 'assets/shared-[hash].js'
+            : 'assets/[name]-[hash].js',
+      },
+    },
   },
 });
