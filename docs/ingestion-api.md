@@ -45,32 +45,42 @@ It is rate-limited to 30 requests per minute per key.
   "schemaVersion": 1,
   "service": { "name": "demo-api", "environment": "production" },
   "metrics": [
-    { "kind": "http_request", "timestamp": "2026-10-27T10:00:00.000Z",
-      "method": "GET", "route": "/products/:id", "statusCode": 200, "durationMs": 42 }
+    {
+      "kind": "http_request",
+      "timestamp": "2026-10-27T10:00:00.000Z",
+      "method": "GET",
+      "route": "/products/:id",
+      "statusCode": 200,
+      "durationMs": 42
+    }
   ],
   "logs": [
-    { "timestamp": "2026-10-27T10:00:00.000Z", "severity": "INFO",
-      "message": "Request completed", "requestId": "req_demo",
-      "attributes": { "route": "/products/:id", "statusCode": 200 } }
+    {
+      "timestamp": "2026-10-27T10:00:00.000Z",
+      "severity": "INFO",
+      "message": "Request completed",
+      "requestId": "req_demo",
+      "attributes": { "route": "/products/:id", "statusCode": 200 }
+    }
   ]
 }
 ```
 
-| Field | Rules |
-|---|---|
-| `schemaVersion` | Must be `1` |
-| `service.name` | 1–63 chars: letters, digits, `.` `_` `-`. It becomes the `service` label. |
-| `service.environment` | Optional. If present, it must equal the project's environment (otherwise `400 ENVIRONMENT_MISMATCH`). The project's environment is always the one stored. |
-| batch size | `metrics` + `logs` ≤ **500** records (otherwise `413 BATCH_TOO_LARGE`); body ≤ **1 MiB** (otherwise `413 PAYLOAD_TOO_LARGE`) |
-| `timestamp` | ISO 8601. It must lie within the last **24 h** and at most **5 min** in the future. |
-| metric `method` | Any HTTP method. Values outside GET/POST/PUT/PATCH/DELETE/HEAD/OPTIONS are recorded as `OTHER`. |
-| metric `route` | A route **template** starting with `/`, ≤ 200 chars, no query string. Identifier-like segments (`/users/8812`, UUIDs, ObjectIds) are normalized server-side (`/users/:id`). |
-| metric `statusCode` | 100–599 |
-| metric `durationMs` | 0 – 3 600 000 |
-| log `severity` | `TRACE`, `DEBUG`, `INFO`, `WARN`, `ERROR`, `FATAL` |
-| log `message` | 1–8192 chars |
-| log `requestId` | Optional, `[A-Za-z0-9_-]{1,64}` |
-| log `attributes` | Optional flat object: ≤ 32 keys (`[A-Za-z_][A-Za-z0-9_.-]{0,63}`); values are a string (≤ 1024), number, boolean, or null |
+| Field                 | Rules                                                                                                                                                                       |
+| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `schemaVersion`       | Must be `1`                                                                                                                                                                 |
+| `service.name`        | 1–63 chars: letters, digits, `.` `_` `-`. It becomes the `service` label.                                                                                                   |
+| `service.environment` | Optional. If present, it must equal the project's environment (otherwise `400 ENVIRONMENT_MISMATCH`). The project's environment is always the one stored.                   |
+| batch size            | `metrics` + `logs` ≤ **500** records (otherwise `413 BATCH_TOO_LARGE`); body ≤ **1 MiB** (otherwise `413 PAYLOAD_TOO_LARGE`)                                                |
+| `timestamp`           | ISO 8601. It must lie within the last **24 h** and at most **5 min** in the future.                                                                                         |
+| metric `method`       | Any HTTP method. Values outside GET/POST/PUT/PATCH/DELETE/HEAD/OPTIONS are recorded as `OTHER`.                                                                             |
+| metric `route`        | A route **template** starting with `/`, ≤ 200 chars, no query string. Identifier-like segments (`/users/8812`, UUIDs, ObjectIds) are normalized server-side (`/users/:id`). |
+| metric `statusCode`   | 100–599                                                                                                                                                                     |
+| metric `durationMs`   | 0 – 3 600 000                                                                                                                                                               |
+| log `severity`        | `TRACE`, `DEBUG`, `INFO`, `WARN`, `ERROR`, `FATAL`                                                                                                                          |
+| log `message`         | 1–8192 chars                                                                                                                                                                |
+| log `requestId`       | Optional, `[A-Za-z0-9_-]{1,64}`                                                                                                                                             |
+| log `attributes`      | Optional flat object: ≤ 32 keys (`[A-Za-z_][A-Za-z0-9_.-]{0,63}`); values are a string (≤ 1024), number, boolean, or null                                                   |
 
 **Redaction.** Before storage, attribute values whose names look like secrets (`password`,
 `token`, `authorization`, `api_key`, `cookie`, `secret`, `session`) are replaced with
@@ -79,21 +89,21 @@ also removed from messages and string values.
 
 ### Responses
 
-| Status | Code | Meaning | Retry? |
-|---|---|---|---|
-| `202` | — | Batch processed. Some records may have been rejected individually (see below). | — |
-| `400` | `INVALID_BATCH` | Envelope invalid (`details.fields`) | No |
-| `400` | `EMPTY_BATCH` | No records | No |
-| `400` | `ENVIRONMENT_MISMATCH` | `service.environment` differs from the project's | No |
-| `400` | `NO_VALID_RECORDS` | Every record was invalid (`details.rejected`, `details.errors`) | No |
-| `401` | `INVALID_API_KEY` | Key missing, malformed, revoked, or expired | No |
-| `413` | `BATCH_TOO_LARGE` / `PAYLOAD_TOO_LARGE` | Over 500 records / over 1 MiB | No (split the batch) |
-| `429` | `RATE_LIMITED` | Too many requests for this key; see `Retry-After` | Yes |
-| `429` | `QUOTA_EXCEEDED` | The organization's daily quota would be exceeded; `Retry-After` = seconds until 00:00 UTC (`details.retryable: false`) | Not before the reset |
-| `502` | `BACKEND_WRITE_FAILED` | Log storage permanently rejected the batch (`details.retryable: false`) | No |
-| `503` | `BACKEND_WRITE_FAILED` | Log storage temporarily unavailable (`Retry-After: 5`, `details.retryable: true`) | Yes |
-| `503` | `BACKEND_NOT_CONFIGURED` | This deployment has no storage for that signal (`details.retryable: false`) | No |
-| `503` | `QUOTA_UNAVAILABLE` | Usage limits could not be checked (database unreachable); nothing was recorded | Yes |
+| Status | Code                                    | Meaning                                                                                                                | Retry?               |
+| ------ | --------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- | -------------------- |
+| `202`  | —                                       | Batch processed. Some records may have been rejected individually (see below).                                         | —                    |
+| `400`  | `INVALID_BATCH`                         | Envelope invalid (`details.fields`)                                                                                    | No                   |
+| `400`  | `EMPTY_BATCH`                           | No records                                                                                                             | No                   |
+| `400`  | `ENVIRONMENT_MISMATCH`                  | `service.environment` differs from the project's                                                                       | No                   |
+| `400`  | `NO_VALID_RECORDS`                      | Every record was invalid (`details.rejected`, `details.errors`)                                                        | No                   |
+| `401`  | `INVALID_API_KEY`                       | Key missing, malformed, revoked, or expired                                                                            | No                   |
+| `413`  | `BATCH_TOO_LARGE` / `PAYLOAD_TOO_LARGE` | Over 500 records / over 1 MiB                                                                                          | No (split the batch) |
+| `429`  | `RATE_LIMITED`                          | Too many requests for this key; see `Retry-After`                                                                      | Yes                  |
+| `429`  | `QUOTA_EXCEEDED`                        | The organization's daily quota would be exceeded; `Retry-After` = seconds until 00:00 UTC (`details.retryable: false`) | Not before the reset |
+| `502`  | `BACKEND_WRITE_FAILED`                  | Log storage permanently rejected the batch (`details.retryable: false`)                                                | No                   |
+| `503`  | `BACKEND_WRITE_FAILED`                  | Log storage temporarily unavailable (`Retry-After: 5`, `details.retryable: true`)                                      | Yes                  |
+| `503`  | `BACKEND_NOT_CONFIGURED`                | This deployment has no storage for that signal (`details.retryable: false`)                                            | No                   |
+| `503`  | `QUOTA_UNAVAILABLE`                     | Usage limits could not be checked (database unreachable); nothing was recorded                                         | Yes                  |
 
 Successful response (partial acceptance):
 
@@ -120,7 +130,7 @@ record's position in its array.
   alert latency). Series time is the gateway's receipt/scrape time, not the record's `timestamp`.
   Metrics accepted in the last few seconds before an API process stops can be lost. This is a
   known limitation of the pull model.
-- **All or nothing on backend failure.** If the log write fails, *nothing* from the request is
+- **All or nothing on backend failure.** If the log write fails, _nothing_ from the request is
   recorded, metrics included, so a client can safely retry the whole batch without
   double counting.
 
@@ -153,10 +163,10 @@ members on the **Usage** page and at `GET /api/v1/organizations/:id/usage`.
 
 ## Stored representation
 
-| Signal | Store | Tenant boundary | Labels |
-|---|---|---|---|
-| Request metrics | Prometheus: `app_http_requests_total`, `app_http_request_duration_seconds` (histogram) | `organization_id`, `project_id` labels set by the gateway. Queried only through server-generated PromQL (M5). | `environment`, `service`, `method`, `route`, `status_class` |
-| Logs | Loki | `X-Scope-OrgID` = organization ID, set by the gateway. A `project` label on every stream. | `project`, `service`, `environment`, `severity` (request ID as structured metadata) |
+| Signal          | Store                                                                                  | Tenant boundary                                                                                               | Labels                                                                              |
+| --------------- | -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| Request metrics | Prometheus: `app_http_requests_total`, `app_http_request_duration_seconds` (histogram) | `organization_id`, `project_id` labels set by the gateway. Queried only through server-generated PromQL (M5). | `environment`, `service`, `method`, `route`, `status_class`                         |
+| Logs            | Loki                                                                                   | `X-Scope-OrgID` = organization ID, set by the gateway. A `project` label on every stream.                     | `project`, `service`, `environment`, `severity` (request ID as structured metadata) |
 
 **Latency buckets (seconds):** 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30.
 Percentiles (p50/p95/p99) are interpolated within these buckets, so they are approximate.

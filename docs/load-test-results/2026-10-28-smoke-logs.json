@@ -1,0 +1,160 @@
+{
+  "runId": "f3d27fbf",
+  "date": "2026-10-28T14:46:19.646Z",
+  "profile": "smoke",
+  "mix": "logs",
+  "clients": 4,
+  "batchSize": 200,
+  "environment": {
+    "cpu": "Intel(R) Core(TM) Ultra 9 275HX",
+    "cores": 24,
+    "ramGiB": 31,
+    "os": "Windows_NT 10.0.26300",
+    "node": "v24.19.0"
+  },
+  "payloadBytes": {
+    "log": 937,
+    "metric": 134
+  },
+  "phases": [
+    {
+      "name": "ramp",
+      "targetRecordsPerSecond": "100→1000",
+      "seconds": 10,
+      "requests": 27,
+      "recordsSent": {
+        "metrics": 0,
+        "logs": 5400
+      },
+      "recordsAccepted": {
+        "metrics": 0,
+        "logs": 5400
+      },
+      "acceptedPerSecond": 539,
+      "rejectionRate": 0,
+      "networkErrors": 0,
+      "status": {
+        "202": 27
+      },
+      "errorCodes": {},
+      "latencyMs": {
+        "p50": 37,
+        "p95": 39,
+        "p99": 39,
+        "max": 39
+      },
+      "maxInFlight": 1,
+      "apiCpuCoresAvg": 0.03
+    },
+    {
+      "name": "sustained",
+      "targetRecordsPerSecond": "1000",
+      "seconds": 60,
+      "requests": 299,
+      "recordsSent": {
+        "metrics": 0,
+        "logs": 59800
+      },
+      "recordsAccepted": {
+        "metrics": 0,
+        "logs": 59800
+      },
+      "acceptedPerSecond": 997,
+      "rejectionRate": 0,
+      "networkErrors": 0,
+      "status": {
+        "202": 299
+      },
+      "errorCodes": {},
+      "latencyMs": {
+        "p50": 37,
+        "p95": 39,
+        "p99": 41,
+        "max": 85
+      },
+      "maxInFlight": 1,
+      "apiCpuCoresAvg": 0.04
+    },
+    {
+      "name": "burst",
+      "targetRecordsPerSecond": "5000",
+      "seconds": 10,
+      "requests": 249,
+      "recordsSent": {
+        "metrics": 0,
+        "logs": 49800
+      },
+      "recordsAccepted": {
+        "metrics": 0,
+        "logs": 49800
+      },
+      "acceptedPerSecond": 4980,
+      "rejectionRate": 0,
+      "networkErrors": 0,
+      "status": {
+        "202": 249
+      },
+      "errorCodes": {},
+      "latencyMs": {
+        "p50": 35,
+        "p95": 38,
+        "p99": 39,
+        "max": 42
+      },
+      "maxInFlight": 2,
+      "apiCpuCoresAvg": 0.16
+    },
+    {
+      "name": "recovery",
+      "targetRecordsPerSecond": "500",
+      "seconds": 20,
+      "requests": 49,
+      "recordsSent": {
+        "metrics": 0,
+        "logs": 9800
+      },
+      "recordsAccepted": {
+        "metrics": 0,
+        "logs": 9800
+      },
+      "acceptedPerSecond": 490,
+      "rejectionRate": 0,
+      "networkErrors": 0,
+      "status": {
+        "202": 49
+      },
+      "errorCodes": {},
+      "latencyMs": {
+        "p50": 36,
+        "p95": 39,
+        "p99": 39,
+        "max": 39
+      },
+      "maxInFlight": 1,
+      "apiCpuCoresAvg": 0.02
+    }
+  ],
+  "verification": {
+    "acknowledged": {
+      "metrics": 0,
+      "logs": 124800
+    },
+    "stored": {
+      "logs": 124800,
+      "metrics": 0
+    },
+    "complete": true,
+    "visibleWithinSecondsAfterRun": 0
+  },
+  "logVisibilityDelayMs": {
+    "samples": 12,
+    "p50": 106,
+    "p95": 189,
+    "max": 189
+  },
+  "dashboardQueryMs": {
+    "samples": 12,
+    "p50": 13,
+    "p95": 20
+  }
+}

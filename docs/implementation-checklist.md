@@ -116,6 +116,7 @@ revoke → 401 → member create-key 403 → delete 204. The key never appears i
 
 **Verification (2026-10-27):** lint, type-check, and build clean; `npm test` 182/182 passed
 (22 files). Highlights:
+
 - A real-Loki test proves another tenant sees 0 streams.
 - An SDK → API end-to-end test runs over a real HTTP port.
 - Live stack run: the demo store sent 183 requests (165 × 2xx, 18 × 4xx). Prometheus showed exactly
@@ -230,6 +231,37 @@ traffic for 35 s → 268 records accepted, 446 refused with `QUOTA_EXCEEDED`, an
 dropped them without retry storms. Operator report showed the quota rejections and the same
 usage total.
 
-## M8 — Hardening and delivery
+## M8 — Hardening and delivery ✅
 
-- [ ] Tenant-isolation suite, E2E test, load test and report, retention check, docs, deployment
+- [x] Tenant-isolation suite: all seven PRD §14.2 items in one file against real MongoDB and
+      Loki (`apps/api/src/test/isolation/tenant-isolation-suite.integration.test.ts`)
+- [x] Exposure: `infra/compose.prod.yaml` publishes only the app port (backends on an
+      `internal: true` network), checked from `docker compose config` by a test;
+      `npm run check:exposure` probes a live deployment (Render: no backend port reachable, every
+      internal path 404)
+- [x] End-to-end flow (`npm run test:e2e`): register → project → key → real sample app → metrics
+      → logs → alert fires → one incident → signed webhook → still one incident while breaching
+      → resolves → resolved webhook → fresh session sees the state → wrong password, foreign org,
+      anonymous, and revoked key refused
+- [x] Load test (`npm run loadtest -w @aop/api`): open-loop, seeded dataset, raised-quota
+      benchmark plan, stored-data verification; report in `docs/load-test-report.md`
+- [x] Retention (`npm run check:retention`): Loki short profile deletes expired logs and keeps
+      fresh ones; Prometheus block retention documented (AC-11)
+- [x] OpenAPI 3.1 (`docs/openapi.json`), request schemas generated from the Zod validators; a
+      test fails if the committed file is stale
+- [x] Secret scan (`npm run scan:secrets`) and GitHub Actions CI (lint, format, types, tests
+      against real backends, build, scan, image)
+- [x] Docs: `architecture.md`, `deployment.md`, `demo-script.md`, `future-roadmap.md`,
+      `load-test-report.md`; README with solution, architecture, testing, limitations,
+      troubleshooting; threat model updated
+- [x] Persistence across a controlled restart (AC-08): MongoDB container restarted, all
+      organizations, projects, keys, and incidents still present
+
+**Verification (2026-10-28):** lint, format, type-check, build, secret scan, and image build
+clean; `npm test` 336/336 passed. **E2E:** passed in 157 s (15 steps). **Load (full profile,
+mixed):** 999 records/s for 300 s (p95 68 ms) and 4,992 records/s for 30 s (p95 52 ms), 0
+rejected; 496,800 acknowledged = 496,800 stored; log ingest → searchable p95 318 ms; dashboard
+query p95 21 ms. **Retention:** expired Loki logs deleted after 90 s in the short profile.
+
+**Deferred (documented in the roadmap):** browser-level E2E (Playwright), multi-instance and
+saturation load tests, demo video (recorded by the author).
