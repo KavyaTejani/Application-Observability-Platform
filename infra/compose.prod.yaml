@@ -1,0 +1,146 @@
+# Full-stack production deployment on one host: the app container plus every private backend.
+#
+#   cp .env.example .env.prod   # set real secrets, APP_BASE_URL, WEB_ORIGIN, OPERATOR_TOKEN
+#   docker compose -f infra/compose.prod.yaml --env-file .env.prod up -d --build
+#
+# Exposure rules (PRD §9.1, AC-08), checked by apps/api/src/test/isolation/exposure.test.ts:
+# - Only the `api` service publishes a port. MongoDB, Redis, Prometheus, Loki, and the
+#   Collector publish none, and the API's internal metrics port (9464) is not published either.
+# - Backends sit on `backend`, an internal network with no route to the outside world. Only the
+#   API is also on `edge`, which it needs to serve users and to send webhooks.
+# - Terminate TLS in front of the published port (a reverse proxy or the hosting platform), and
+#   set TRUST_PROXY=true when that proxy is the only hop.
+name: aop-prod
+
+x-restart: &restart
+  restart: unless-stopped
+
+services:
+  api:
+    <<: *restart
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      INTERNAL_PORT: 9464
+      APP_BASE_URL: ${APP_BASE_URL:?set APP_BASE_URL}
+      WEB_ORIGIN: ${WEB_ORIGIN:?set WEB_ORIGIN}
+      TRUST_PROXY: ${TRUST_PROXY:-true}
+      MONGODB_URI: mongodb://mongodb:27017/aop
+      REDIS_URL: redis://redis:6379
+      PROMETHEUS_URL: http://prometheus:9090
+      LOKI_URL: http://loki:3100
+      SESSION_SECRET: ${SESSION_SECRET:?set SESSION_SECRET}
+      TELEMETRY_KEY_PEPPER: ${TELEMETRY_KEY_PEPPER:?set TELEMETRY_KEY_PEPPER}
+      WEBHOOK_ENCRYPTION_KEY: ${WEBHOOK_ENCRYPTION_KEY:-}
+      OPERATOR_TOKEN: ${OPERATOR_TOKEN:-}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    ports:
+      - '${APP_PORT:-8080}:4000'
+    depends_on:
+      mongodb: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      loki: { condition: service_healthy }
+      prometheus: { condition: service_healthy }
+    networks: [edge, backend]
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://localhost:4000/health/live').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  mongodb:
+    <<: *restart
+    image: mongo:8.0
+    command: ['--bind_ip_all', '--quiet']
+    volumes:
+      - mongo-data:/data/db
+    networks: [backend]
+    healthcheck:
+      test: ['CMD', 'mongosh', '--quiet', '--eval', 'db.adminCommand("ping").ok']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    <<: *restart
+    image: redis:7.4-alpine
+    command:
+      [
+        'redis-server',
+        '--appendonly',
+        'yes',
+        '--maxmemory',
+        '256mb',
+        '--maxmemory-policy',
+        'noeviction',
+      ]
+    volumes:
+      - redis-data:/data
+    networks: [backend]
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  prometheus:
+    <<: *restart
+    image: prom/prometheus:v3.5.0
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=15d
+    volumes:
+      - ./prometheus/prometheus.prod.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    networks: [backend]
+    healthcheck:
+      test: ['CMD', 'wget', '-q', '--spider', 'http://localhost:9090/-/ready']
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  loki:
+    <<: *restart
+    image: grafana/loki:3.5.0
+    command: ['-config.file=/etc/loki/loki.yaml']
+    volumes:
+      - ./loki/loki.yaml:/etc/loki/loki.yaml:ro
+      - loki-data:/loki
+    networks: [backend]
+    healthcheck:
+      test: ['CMD', 'wget', '-q', '--spider', 'http://localhost:3100/ready']
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
+  otel-collector:
+    <<: *restart
+    image: otel/opentelemetry-collector-contrib:0.130.0
+    command: ['--config=/etc/otelcol/config.yaml']
+    volumes:
+      - ./otel-collector/config.yaml:/etc/otelcol/config.yaml:ro
+    networks: [backend]
+
+networks:
+  edge:
+    driver: bridge
+  backend:
+    driver: bridge
+    # No external connectivity: backends can talk to each other and to the API, nothing else.
+    internal: true
+
+volumes:
+  mongo-data:
+  redis-data:
+  prometheus-data:
+  loki-data:

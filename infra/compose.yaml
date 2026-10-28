@@ -3,7 +3,7 @@
 #
 # Every backend sits on the internal `backend` network. Ports are published ONLY on 127.0.0.1
 # so the host-run API can reach them during development; nothing is reachable from other
-# machines. The production file (compose.prod.yaml, milestone M8) publishes no backend ports.
+# machines. The production file (compose.prod.yaml) publishes no backend ports.
 name: aop
 
 services:

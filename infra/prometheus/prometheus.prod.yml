@@ -1,0 +1,22 @@
+# Production scrape configuration for infra/compose.prod.yaml. Same jobs as prometheus.yml, but
+# the API is a container on the private `backend` network, so it is scraped by service name.
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: aop-api
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['api:9464']
+
+  # Tenant labels come from the gateway; honor_labels keeps them exactly as exported.
+  - job_name: aop-telemetry
+    metrics_path: /telemetry-metrics
+    honor_labels: true
+    static_configs:
+      - targets: ['api:9464']
+
+  - job_name: prometheus
+    static_configs:
+      - targets: ['localhost:9090']
