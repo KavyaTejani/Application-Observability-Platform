@@ -9,6 +9,8 @@ import {
 } from '../modules/health/health.service.js';
 import type { LokiQueryApi, PrometheusQueryApi } from '../modules/query/backend-clients.js';
 import type { LogWriter } from '../modules/telemetry/loki-writer.js';
+import type { UrlPolicy } from '../modules/alerts/ssrf.js';
+import type { WebhookSender } from '../modules/alerts/webhook-client.js';
 import { createPlatformMetrics } from '../observability/platform-metrics.js';
 import { createServices } from '../services.js';
 
@@ -47,6 +49,8 @@ export interface TestAppOptions {
   /** Query backends for exploration tests. Default to none (503 BACKEND_NOT_CONFIGURED). */
   prometheusQuery?: PrometheusQueryApi | null;
   lokiQuery?: LokiQueryApi | null;
+  webhookSender?: WebhookSender;
+  webhookResolve?: UrlPolicy['resolve'];
 }
 
 /** Builds the public app with stubbed dependency probes (all up unless overridden). */
@@ -63,10 +67,13 @@ export function buildTestApp(options: TestAppOptions = {}) {
     logger,
     limiter: options.limiter ?? new MemoryRateLimiter(),
     platformMetrics: metrics,
+    health,
     // Tests never reach a real Loki unless they pass a writer explicitly.
     logWriter: options.logWriter ?? null,
     prometheusQuery: options.prometheusQuery ?? null,
     lokiQuery: options.lokiQuery ?? null,
+    webhookSender: options.webhookSender,
+    webhookResolve: options.webhookResolve,
     now: options.now,
   });
   const app = createApp({ config, logger, health, metrics, ...services });

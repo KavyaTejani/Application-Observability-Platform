@@ -1,4 +1,6 @@
-import { PlanModel, type PlanDoc } from './plan.model.js';
+import type { Types } from 'mongoose';
+import { OrganizationModel } from '../organizations/organization.model.js';
+import { PlanModel, type PlanDoc, type PlanLimits } from './plan.model.js';
 
 export const DEFAULT_PLAN_CODE = 'developer';
 
@@ -32,4 +34,37 @@ export async function ensureDefaultPlan(): Promise<PlanDoc> {
   );
   if (!plan) throw new Error('Default plan upsert returned no document');
   return plan;
+}
+
+/**
+ * Looks up an organization's plan limits for the ingestion hot path, with a short cache so a
+ * busy organization does not cost two extra database reads per batch. A plan change takes
+ * effect within `ttlMs` on every instance.
+ */
+export class PlanLimitsCache {
+  private readonly entries = new Map<string, { limits: PlanLimits; expiresAt: number }>();
+
+  constructor(
+    private readonly ttlMs: number,
+    private readonly now: () => number = Date.now,
+  ) {}
+
+  async limitsFor(organizationId: Types.ObjectId): Promise<PlanLimits> {
+    const key = organizationId.toHexString();
+    const cached = this.entries.get(key);
+    if (cached && cached.expiresAt > this.now()) return cached.limits;
+
+    const limits = await planLimitsFor(organizationId);
+    if (this.ttlMs > 0) this.entries.set(key, { limits, expiresAt: this.now() + this.ttlMs });
+    return limits;
+  }
+}
+
+/** The organization's current plan limits, read from the database. */
+export async function planLimitsFor(organizationId: Types.ObjectId): Promise<PlanLimits> {
+  const org = await OrganizationModel.findById(organizationId, { planId: 1 }).lean();
+  if (!org) throw new Error(`Organization ${organizationId.toHexString()} not found`);
+  const plan = await PlanModel.findById(org.planId, { limits: 1 }).lean();
+  if (!plan) throw new Error(`Plan ${org.planId.toHexString()} missing for organization`);
+  return plan.limits;
 }

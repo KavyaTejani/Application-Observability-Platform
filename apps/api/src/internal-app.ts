@@ -1,4 +1,6 @@
 import express, { type Express } from 'express';
+import { internalOperatorRouter } from './modules/operator/operator.routes.js';
+import type { OperatorService } from './modules/operator/operator.service.js';
 import type { CustomerMetrics } from './modules/telemetry/customer-metrics.js';
 import type { PlatformMetrics } from './observability/platform-metrics.js';
 
@@ -11,10 +13,12 @@ import type { PlatformMetrics } from './observability/platform-metrics.js';
  *   server-derived tenant IDs. These are kept separate so customer series never mix with
  *   platform series. Serving goes through `scrape()`, which completes the zero-initialization
  *   of new series (see CustomerMetrics).
+ * - `/operator/health`: the operator health report, without the token the public route needs.
  */
 export function createInternalApp(
   metrics: PlatformMetrics,
   customerMetrics?: CustomerMetrics,
+  operator?: OperatorService,
 ): Express {
   const app = express();
   app.disable('x-powered-by');
@@ -30,5 +34,6 @@ export function createInternalApp(
       res.send(await customerMetrics.scrape());
     });
   }
+  if (operator) app.use('/operator', internalOperatorRouter(operator));
   return app;
 }

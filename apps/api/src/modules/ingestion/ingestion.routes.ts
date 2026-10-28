@@ -47,7 +47,8 @@ export function ingestionRouter({
 
   /**
    * Telemetry batch ingestion (schema v1, docs/ingestion-api.md). The request-rate limit sits
-   * per key, before validation. The daily usage quota arrives in M7.
+   * per key, before validation; the daily usage quota is checked after validation, so only valid
+   * records count against it (see TelemetryIngestService).
    */
   router.post(
     '/batch',
@@ -65,6 +66,9 @@ export function ingestionRouter({
           outcome: error instanceof AppError ? error.code : 'INTERNAL_ERROR',
         });
         if (error instanceof AppError && error.status === 503) res.setHeader('Retry-After', '5');
+        if (error instanceof AppError && error.code === 'QUOTA_EXCEEDED') {
+          res.setHeader('Retry-After', String(error.details?.retryAfterSeconds ?? 60));
+        }
         throw error;
       } finally {
         stop();

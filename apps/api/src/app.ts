@@ -10,14 +10,23 @@ import { originCheck } from './middleware/origin-check.js';
 import { generateRequestId } from './middleware/request-id.js';
 import { requestMetrics } from './middleware/request-metrics.js';
 import { webAppRouter } from './middleware/web-app.js';
+import {
+  alertRuleRouter,
+  destinationRouter,
+  incidentRouter,
+  organizationDestinationsRouter,
+  projectAlertsRouter,
+} from './modules/alerts/alert.routes.js';
 import { apiKeyRouter } from './modules/api-keys/api-key.routes.js';
 import { authRouter } from './modules/auth/auth.routes.js';
 import { healthRouter, statusRouter } from './modules/health/health.routes.js';
 import type { HealthService } from './modules/health/health.service.js';
 import { ingestionRouter } from './modules/ingestion/ingestion.routes.js';
+import { operatorRouter } from './modules/operator/operator.routes.js';
 import { organizationRouter } from './modules/organizations/organization.routes.js';
 import { queryRouter } from './modules/query/query.routes.js';
 import { organizationProjectsRouter, projectRouter } from './modules/projects/project.routes.js';
+import { usageRouter } from './modules/usage/usage.routes.js';
 import type { PlatformMetrics } from './observability/platform-metrics.js';
 import type { Services } from './services.js';
 
@@ -32,7 +41,7 @@ export interface AppDeps extends Services {
 export function createApp(deps: AppDeps): Express {
   const { config, logger, health, metrics, sessions, projects, apiKeys, keyAuth, limiter, ingest } =
     deps;
-  const { metricsQuery, logsQuery } = deps;
+  const { metricsQuery, logsQuery, alerts, operator, now } = deps;
   const app = express();
   app.disable('x-powered-by');
   app.set('trust proxy', config.trustProxy ? 1 : false);
@@ -71,10 +80,20 @@ export function createApp(deps: AppDeps): Express {
   api.use('/status', statusRouter(health));
   api.use('/auth', authRouter(deps));
   api.use('/organizations/:organizationId/projects', organizationProjectsRouter(projects));
+  api.use(
+    '/organizations/:organizationId/notification-destinations',
+    organizationDestinationsRouter(alerts),
+  );
+  api.use('/organizations/:organizationId/usage', usageRouter(now));
   api.use('/organizations', organizationRouter());
   api.use('/projects/:projectId/keys', apiKeyRouter(apiKeys));
   api.use('/projects/:projectId', queryRouter({ metricsQuery, logsQuery, limiter }));
+  api.use('/projects/:projectId', projectAlertsRouter(alerts));
+  api.use('/alert-rules', alertRuleRouter(alerts));
+  api.use('/incidents', incidentRouter(alerts));
+  api.use('/notification-destinations', destinationRouter(alerts, limiter));
   api.use('/projects', projectRouter(projects));
+  api.use('/operator', operatorRouter(operator, config.operatorToken, limiter));
   app.use('/api/v1', api);
 
   // Telemetry ingress: project-key authenticated. No cookies, so no CSRF surface.

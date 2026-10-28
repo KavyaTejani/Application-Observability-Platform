@@ -74,9 +74,11 @@ async function main(): Promise<void> {
     logger,
     limiter: new RedisRateLimiter(redis),
     platformMetrics: metrics,
+    health,
   });
   const app = createApp({ config, logger, health, metrics, ...services });
-  const internalApp = createInternalApp(metrics, services.customerMetrics);
+  const internalApp = createInternalApp(metrics, services.customerMetrics, services.operator);
+  if (config.alerts.workerEnabled) services.alertWorker.start();
 
   const server: Server = app.listen(config.port, () =>
     logger.info({ port: config.port, env: config.env }, 'API listening'),
@@ -105,6 +107,7 @@ async function main(): Promise<void> {
       new Promise<void>((resolve) => server.close(() => resolve())),
       new Promise<void>((resolve) => internalServer.close(() => resolve())),
     ]);
+    await services.alertWorker.stop();
     await Promise.allSettled([mongoose.disconnect(), redis.quit()]);
     logger.info('Shutdown complete');
     process.exit(0);

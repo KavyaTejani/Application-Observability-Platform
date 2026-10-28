@@ -15,6 +15,7 @@ import { AppError } from '../../lib/errors.js';
 import type { PlatformMetrics } from '../../observability/platform-metrics.js';
 import type { IngestionPrincipal } from '../api-keys/key-authenticator.js';
 import { ProjectModel } from '../projects/project.model.js';
+import type { QuotaService } from '../usage/quota.service.js';
 import type { CustomerMetrics } from './customer-metrics.js';
 import { LokiWriteError, type LogWriter } from './loki-writer.js';
 import { methodLabel, normalizeRoute, statusClassLabel } from './normalize.js';
@@ -45,6 +46,7 @@ export interface IngestDeps {
   logWriter: LogWriter | null;
   metricsEnabled: boolean;
   platformMetrics: PlatformMetrics;
+  quota: QuotaService;
   logger: Logger;
   now?: () => Date;
 }
@@ -58,6 +60,10 @@ export interface IngestDeps {
  *   the next Prometheus scrape, and are lost if the process stops before that scrape.
  * - If the log backend fails, the whole request fails (503) and *nothing* from it is recorded,
  *   so an SDK retry of the batch cannot double-count metrics.
+ *
+ * Quota (PRD QUOTA-003): the valid records are reserved against the organization's daily quota
+ * before anything is forwarded, and the reservation is released if the forward fails, so failed
+ * batches never consume quota.
  */
 export class TelemetryIngestService {
   private readonly now: () => Date;
@@ -100,9 +106,12 @@ export class TelemetryIngestService {
     );
     const logs = this.validateRecords('logs', envelope.logs, logRecordSchema, inWindow, reject);
     const acceptedCount = metrics.length + logs.length;
+    const rejectedCount = rejected.metrics + rejected.logs;
+    const subject = { organizationId: principal.organizationId, projectId: principal.projectId };
 
     if (acceptedCount === 0) {
       this.countRejections(rejected);
+      await this.deps.quota.recordRejected(subject, rejectedCount);
       throw new AppError(400, 'NO_VALID_RECORDS', 'No record in the batch was valid.', {
         rejected,
         errors,
@@ -115,15 +124,43 @@ export class TelemetryIngestService {
       throw backendUnavailable('logs', 'Log storage is not configured in this deployment.');
     }
 
+    // Estimated ingested bytes: the serialized size of each accepted record.
+    const bytes = { metrics: serializedBytes(metrics), logs: serializedBytes(logs) };
+    let reservation;
+    try {
+      reservation = await this.deps.quota.reserve(
+        subject,
+        acceptedCount,
+        bytes.metrics + bytes.logs,
+      );
+    } catch (error) {
+      this.countRejections({
+        metrics: rejected.metrics + metrics.length,
+        logs: rejected.logs + logs.length,
+      });
+      await this.deps.quota.recordRejected(subject, rejectedCount);
+      throw error;
+    }
+
     const service = envelope.service.name;
-    if (logs.length > 0 && this.deps.logWriter) await this.writeLogs(principal, service, logs);
+    if (logs.length > 0 && this.deps.logWriter) {
+      try {
+        await this.writeLogs(principal, service, logs);
+      } catch (error) {
+        await this.deps.quota.release(reservation);
+        throw error;
+      }
+    }
     for (const metric of metrics) this.observe(principal, service, metric);
 
     const accepted = { metrics: metrics.length, logs: logs.length };
-    const { ingestRecords } = this.deps.platformMetrics;
+    const { ingestRecords, ingestBytes } = this.deps.platformMetrics;
     ingestRecords.inc({ signal: 'metrics', outcome: 'accepted' }, accepted.metrics);
     ingestRecords.inc({ signal: 'logs', outcome: 'accepted' }, accepted.logs);
+    ingestBytes.inc({ signal: 'metrics' }, bytes.metrics);
+    ingestBytes.inc({ signal: 'logs' }, bytes.logs);
     this.countRejections(rejected);
+    await this.deps.quota.commit(reservation, rejectedCount);
     this.touchProject(principal);
     return { accepted, rejected, errors };
   }
@@ -257,6 +294,12 @@ export class TelemetryIngestService {
     ingestRecords.inc({ signal: 'metrics', outcome: 'rejected' }, rejected.metrics);
     ingestRecords.inc({ signal: 'logs', outcome: 'rejected' }, rejected.logs);
   }
+}
+
+function serializedBytes(records: unknown[]): number {
+  let total = 0;
+  for (const record of records) total += Buffer.byteLength(JSON.stringify(record));
+  return total;
 }
 
 function backendUnavailable(signal: Signal, message: string) {

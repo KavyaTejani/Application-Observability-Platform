@@ -8,7 +8,8 @@
     "build": "tsc -p tsconfig.build.json",
     "start": "node dist/server.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "seed:demo": "tsx --conditions=source --env-file-if-exists=../../.env src/scripts/seed-demo.ts"
+    "seed:demo": "tsx --conditions=source --env-file-if-exists=../../.env src/scripts/seed-demo.ts",
+    "plan:set": "tsx --conditions=source --env-file-if-exists=../../.env src/scripts/set-plan.ts"
   },
   "dependencies": {
     "@aop/validation": "^0.1.0",
