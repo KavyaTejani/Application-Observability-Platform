@@ -111,6 +111,31 @@ describe('alert API', () => {
       expect(Object.keys(res.body.error.details.fields)).toContain(field);
     });
 
+    it('bounds the threshold on edits by the stored rule’s metric', async () => {
+      const latency = (await post(a.agent, `/api/v1/projects/${projectA}/alert-rules`, rule())).body
+        .rule.id;
+      const errors = (
+        await post(
+          a.agent,
+          `/api/v1/projects/${projectA}/alert-rules`,
+          rule({ name: 'errors', metricKey: 'error_rate', threshold: 0.05 }),
+        )
+      ).body.rule.id;
+      for (const [id, threshold] of [
+        [errors, 5], // percent instead of ratio
+        [latency, 0],
+        [latency, 120_000],
+      ] as const) {
+        const res = await patch(a.agent, `/api/v1/alert-rules/${id}`, { threshold });
+        expect(res.status, `${threshold}`).toBe(400);
+        expect(res.body.error.details.fields.threshold).toBeDefined();
+      }
+      expect(
+        (await patch(a.agent, `/api/v1/alert-rules/${errors}`, { threshold: 0.2 })).body.rule
+          .threshold,
+      ).toBe(0.2);
+    });
+
     it('rejects a destination from another organization', async () => {
       const res = await post(
         a.agent,

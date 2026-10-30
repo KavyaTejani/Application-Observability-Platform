@@ -1,3 +1,4 @@
+import { ALERT_THRESHOLD_BOUNDS } from '@aop/validation';
 import type {
   createAlertRuleSchema,
   createDestinationSchema,
@@ -169,6 +170,20 @@ export class AlertService {
       );
     }
 
+    // The schema cannot check this alone: the bounds depend on the stored rule's metric.
+    if (input.threshold !== undefined) {
+      const { min, max } = ALERT_THRESHOLD_BOUNDS[rule.metricKey];
+      if (input.threshold < min || input.threshold > max) {
+        throw new AppError(400, 'VALIDATION_ERROR', 'Some fields are invalid.', {
+          fields: {
+            threshold:
+              rule.metricKey === 'error_rate'
+                ? 'Error-rate thresholds are a ratio between 0 and 1 (e.g. 0.05 for 5%)'
+                : `Latency thresholds must be between ${min} and ${max} ms`,
+          },
+        });
+      }
+    }
     const window = (input.windowSeconds ?? rule.windowSeconds) as number;
     const interval = (input.evaluationIntervalSeconds ?? rule.evaluationIntervalSeconds) as number;
     if (window < interval) {
