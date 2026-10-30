@@ -75,9 +75,9 @@ export function RegisterPage() {
           {register.isPending ? 'Creating account…' : 'Create account'}
         </Button>
       </form>
-      <p className="mt-6 text-center text-sm text-slate-600">
+      <p className="mt-6 text-center text-sm text-fg-secondary">
         Already have an account?{' '}
-        <Link to="/login" className="font-medium text-slate-900 underline">
+        <Link to="/login" className="font-medium text-accent-text hover:underline">
           Sign in
         </Link>
       </p>

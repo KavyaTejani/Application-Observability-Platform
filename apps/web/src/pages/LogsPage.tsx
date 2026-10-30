@@ -7,7 +7,8 @@ import {
 } from '@aop/validation';
 import { useState, type FormEvent } from 'react';
 import { useOutletContext, useSearchParams } from 'react-router';
-import { Alert, Button, Spinner, TextField } from '../components/ui';
+import { ChevronDown, ChevronRight, ScrollText, Search, X } from 'lucide-react';
+import { Alert, Button, Card, EmptyState, SelectField, Spinner, TextField } from '../components/ui';
 import { ApiError, errorMessage } from '../lib/api';
 import { formatDateTime, formatLogTime, timeZoneLabel } from '../lib/format';
 import { useLogs, useServices, type LogEntry } from '../lib/telemetry';
@@ -18,9 +19,9 @@ import type { ProjectContext } from './ProjectPage';
  * (never colour alone).
  */
 const SEVERITY_STYLE: Record<Severity, string> = {
-  TRACE: 'bg-slate-100 text-slate-600',
-  DEBUG: 'bg-slate-100 text-slate-600',
-  INFO: 'bg-slate-200 text-slate-800',
+  TRACE: 'bg-subtle text-fg-secondary',
+  DEBUG: 'bg-subtle text-fg-secondary',
+  INFO: 'bg-surface text-fg dark:bg-line',
   WARN: 'bg-[#fab219] text-[#0b0b0b]',
   ERROR: 'bg-[#d03b3b] text-white',
   FATAL: 'bg-[#8f1f1f] text-white',
@@ -29,7 +30,7 @@ const SEVERITY_STYLE: Record<Severity, string> = {
 function SeverityBadge({ severity }: { severity: Severity }) {
   return (
     <span
-      className={`inline-block w-14 rounded px-1.5 py-0.5 text-center text-[11px] font-semibold ${SEVERITY_STYLE[severity]}`}
+      className={`inline-block w-14 rounded-sm bw-thin border-ink px-1.5 py-0.5 text-center font-mono text-[11px] font-semibold dark:border-transparent ${SEVERITY_STYLE[severity]}`}
     >
       {severity}
     </span>
@@ -97,37 +98,23 @@ export function LogsPage() {
       <form
         key={params.toString()}
         onSubmit={onSubmit}
-        className="grid gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm md:grid-cols-4"
+        className="grid gap-4 frame p-5 md:grid-cols-4"
       >
-        <label className="text-sm font-medium text-slate-700">
-          Time range
-          <select
-            name="range"
-            defaultValue={range}
-            className="mt-1 block w-full rounded-md border border-slate-300 bg-white px-2 py-2 text-sm"
-          >
-            {TIME_RANGES.map((r) => (
-              <option key={r} value={r}>
-                Last {r}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="text-sm font-medium text-slate-700">
-          Service
-          <select
-            name="service"
-            defaultValue={service}
-            className="mt-1 block w-full rounded-md border border-slate-300 bg-white px-2 py-2 text-sm"
-          >
-            <option value="">All services</option>
-            {services.data?.services.map((name) => (
-              <option key={name} value={name}>
-                {name}
-              </option>
-            ))}
-          </select>
-        </label>
+        <SelectField label="Time range" name="range" defaultValue={range}>
+          {TIME_RANGES.map((r) => (
+            <option key={r} value={r}>
+              Last {r}
+            </option>
+          ))}
+        </SelectField>
+        <SelectField label="Service" name="service" defaultValue={service}>
+          <option value="">All services</option>
+          {services.data?.services.map((name) => (
+            <option key={name} value={name}>
+              {name}
+            </option>
+          ))}
+        </SelectField>
         <TextField
           label="Request ID"
           name="requestId"
@@ -143,29 +130,37 @@ export function LogsPage() {
           error={fieldErrors.contains}
         />
         <fieldset className="md:col-span-3">
-          <legend className="text-sm font-medium text-slate-700">
-            Severity (none selected = all)
+          <legend className="text-sm font-medium text-fg">
+            Severity <span className="font-normal text-fg-muted">(none selected = all)</span>
           </legend>
-          <div className="mt-1 flex flex-wrap gap-3">
+          <div className="mt-2 flex flex-wrap gap-2">
             {SEVERITIES.map((s) => (
-              <label key={s} className="flex items-center gap-1 text-sm text-slate-700">
-                <input type="checkbox" name={`sev-${s}`} defaultChecked={severity.includes(s)} />
+              <label
+                key={s}
+                className="flex cursor-pointer items-center gap-1.5 rounded-lg bw border-line-strong px-2.5 py-1 text-xs font-medium text-fg-secondary has-[:checked]:border-ink has-[:checked]:bg-accent has-[:checked]:text-accent-fg has-[:checked]:shadow-chip dark:has-[:checked]:border-accent dark:has-[:checked]:bg-accent-soft dark:has-[:checked]:text-accent-text"
+              >
+                <input
+                  type="checkbox"
+                  name={`sev-${s}`}
+                  defaultChecked={severity.includes(s)}
+                  className="accent-[var(--c-accent)]"
+                />
                 {s}
               </label>
             ))}
           </div>
         </fieldset>
         <div className="flex items-end gap-2">
-          <Button type="submit" className="flex-1">
+          <Button type="submit" icon={Search} className="flex-1">
             Search
           </Button>
-          <Button variant="secondary" onClick={() => setParams(new URLSearchParams())}>
+          <Button variant="ghost" icon={X} onClick={() => setParams(new URLSearchParams())}>
             Clear
           </Button>
         </div>
       </form>
 
-      <p className="text-xs text-slate-500">
+      <p className="text-xs text-fg-muted">
         Newest first · times in {timeZoneLabel} · searched{' '}
         {formatDateTime(new Date(searchedAt).toISOString())}
       </p>
@@ -180,10 +175,15 @@ export function LogsPage() {
       ) : logs.isPending ? (
         <Spinner label="Searching logs…" />
       ) : entries.length === 0 ? (
-        <Alert tone="info">No logs match these filters in the selected time range.</Alert>
+        <Card>
+          <EmptyState icon={ScrollText} title="No logs match">
+            Nothing matches these filters in the selected time range. Widen the range or clear a
+            filter.
+          </EmptyState>
+        </Card>
       ) : (
-        <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
-          <ul className="divide-y divide-slate-100">
+        <div className="overflow-hidden frame">
+          <ul className="divide-y divide-divider">
             {entries.map((entry) => (
               <LogRow
                 key={entry.id}
@@ -192,7 +192,7 @@ export function LogsPage() {
               />
             ))}
           </ul>
-          <div className="flex items-center justify-between border-t border-slate-200 p-3 text-sm text-slate-600">
+          <div className="flex items-center justify-between bw-t border-line p-3 text-sm text-fg-secondary">
             <span>{entries.length} entries shown</span>
             {logs.hasNextPage ? (
               <Button
@@ -227,33 +227,38 @@ function LogRow({
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
-        className="grid w-full grid-cols-[auto_auto_1fr] items-start gap-3 px-3 py-2 text-left text-sm hover:bg-slate-50 md:grid-cols-[11rem_auto_8rem_1fr]"
+        className="grid w-full grid-cols-[auto_auto_auto_1fr] items-start gap-3 px-4 py-2.5 text-left text-sm hover:bg-subtle/60 md:grid-cols-[auto_11rem_auto_8rem_1fr]"
       >
-        <span className="font-mono text-xs text-slate-500 tabular-nums">
+        {open ? (
+          <ChevronDown className="mt-0.5 size-3.5 text-fg-muted" aria-hidden="true" />
+        ) : (
+          <ChevronRight className="mt-0.5 size-3.5 text-fg-muted" aria-hidden="true" />
+        )}
+        <span className="font-mono text-xs text-fg-muted tabular-nums">
           {formatLogTime(entry.timestamp)}
         </span>
         <SeverityBadge severity={entry.severity} />
-        <span className="hidden truncate text-xs text-slate-500 md:block">{entry.service}</span>
-        <span className="truncate text-slate-900">{entry.message}</span>
+        <span className="hidden truncate text-xs text-fg-muted md:block">{entry.service}</span>
+        <span className="truncate text-fg">{entry.message}</span>
       </button>
       {open && (
-        <div className="space-y-2 bg-slate-50 px-3 pb-3 text-sm">
-          <p className="break-words whitespace-pre-wrap text-slate-900">{entry.message}</p>
+        <div className="space-y-3 border-t border-divider bg-subtle/60 px-4 py-3 text-sm">
+          <p className="break-words whitespace-pre-wrap text-fg">{entry.message}</p>
           <dl className="grid grid-cols-[8rem_1fr] gap-x-3 gap-y-1 text-xs">
-            <dt className="text-slate-500">Timestamp</dt>
+            <dt className="text-fg-muted">Timestamp</dt>
             <dd className="font-mono">{entry.timestamp} (UTC)</dd>
-            <dt className="text-slate-500">Service</dt>
+            <dt className="text-fg-muted">Service</dt>
             <dd>{entry.service}</dd>
-            <dt className="text-slate-500">Environment</dt>
+            <dt className="text-fg-muted">Environment</dt>
             <dd>{entry.environment}</dd>
-            <dt className="text-slate-500">Request ID</dt>
+            <dt className="text-fg-muted">Request ID</dt>
             <dd>
               {entry.requestId ? (
                 <>
                   <code>{entry.requestId}</code>{' '}
                   <button
                     type="button"
-                    className="ml-2 underline"
+                    className="ml-2 font-medium text-accent-text hover:underline"
                     onClick={() => onShowRequest(entry.requestId as string)}
                   >
                     Show all logs for this request
@@ -265,7 +270,7 @@ function LogRow({
             </dd>
             {attributes.map(([key, value]) => (
               <div key={key} className="contents">
-                <dt className="truncate text-slate-500">{key}</dt>
+                <dt className="truncate text-fg-muted">{key}</dt>
                 <dd className="font-mono break-all">{JSON.stringify(value)}</dd>
               </div>
             ))}

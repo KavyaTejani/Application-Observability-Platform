@@ -16,8 +16,8 @@ export function NotificationsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold text-slate-900">Notifications</h1>
-        <p className="mt-1 text-sm text-slate-600">
+        <h1 className="text-2xl font-semibold tracking-tight text-fg">Notifications</h1>
+        <p className="mt-1 text-sm text-fg-secondary">
           Webhook destinations receive a signed JSON payload when an incident fires or resolves.
         </p>
       </div>
@@ -26,10 +26,10 @@ export function NotificationsPage() {
         {destinations.isPending && <Spinner />}
         {destinations.isError && <Alert>{errorMessage(destinations.error)}</Alert>}
         {destinations.data?.destinations.length === 0 && (
-          <p className="text-sm text-slate-600">No destinations yet.</p>
+          <p className="text-sm text-fg-secondary">No destinations yet.</p>
         )}
         {destinations.data && destinations.data.destinations.length > 0 && (
-          <ul className="divide-y divide-slate-100">
+          <ul className="divide-y divide-divider">
             {destinations.data.destinations.map((d) => (
               <DestinationRow
                 key={d.id}
@@ -49,7 +49,7 @@ export function NotificationsPage() {
       )}
 
       <Card title="Verifying signatures">
-        <p className="text-sm text-slate-700">
+        <p className="text-sm text-fg-secondary">
           Each request carries <code>X-AOP-Signature: t=&lt;unix&gt;,v1=&lt;hex&gt;</code>, where{' '}
           <code>v1 = HMAC-SHA256(signingSecret, t + "." + rawBody)</code>. Recompute it with your
           secret, compare in constant time, and reject timestamps older than five minutes.
@@ -94,28 +94,40 @@ function DestinationRow({
   return (
     <li className="space-y-2 py-3 text-sm">
       <div className="flex flex-wrap items-center gap-2">
-        <span className="font-medium text-slate-900">{destination.name}</span>
-        <code className="text-xs text-slate-600">{destination.urlPreview}</code>
-        <span className="text-xs text-slate-500">
-          {destination.enabled ? '● enabled' : '○ disabled'}
+        <span className="font-medium text-fg">{destination.name}</span>
+        <code className="text-xs text-fg-secondary">{destination.urlPreview}</code>
+        <span className="text-xs text-fg-muted">
+          {destination.enabled ? 'Enabled' : 'Disabled'}
         </span>
       </div>
       {canManage && (
         <div className="flex flex-wrap gap-2">
-          <Button variant="secondary" onClick={() => test.mutate()} disabled={test.isPending}>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => test.mutate()}
+            disabled={test.isPending}
+          >
             {test.isPending ? 'Sending…' : 'Send test'}
           </Button>
-          <Button variant="secondary" onClick={() => toggle.mutate()} disabled={toggle.isPending}>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => toggle.mutate()}
+            disabled={toggle.isPending}
+          >
             {destination.enabled ? 'Disable' : 'Enable'}
           </Button>
           {!confirm ? (
-            <Button variant="secondary" onClick={() => setConfirm(true)}>
+            <Button variant="ghost" size="sm" onClick={() => setConfirm(true)}>
               Delete
             </Button>
           ) : (
             <>
-              <Button onClick={() => remove.mutate()}>Confirm delete</Button>
-              <Button variant="secondary" onClick={() => setConfirm(false)}>
+              <Button variant="danger" size="sm" onClick={() => remove.mutate()}>
+                Confirm delete
+              </Button>
+              <Button variant="ghost" size="sm" onClick={() => setConfirm(false)}>
                 Cancel
               </Button>
             </>
@@ -124,7 +136,7 @@ function DestinationRow({
       )}
       {test.data && (
         <p
-          className={`text-xs ${test.data.result.status === 'success' ? 'text-emerald-800' : 'text-red-700'}`}
+          className={`text-xs ${test.data.result.status === 'success' ? 'text-ok' : 'text-danger'}`}
         >
           Test: {test.data.result.status}
           {test.data.result.responseStatus ? ` (HTTP ${test.data.result.responseStatus})` : ''}
@@ -132,7 +144,7 @@ function DestinationRow({
         </p>
       )}
       {(test.error ?? toggle.error ?? remove.error) && (
-        <p className="text-xs text-red-700">
+        <p className="text-xs text-danger">
           {errorMessage(test.error ?? toggle.error ?? remove.error)}
         </p>
       )}
@@ -182,10 +194,10 @@ function CreateDestinationForm({ organizationId }: { organizationId: string }) {
     <Card title="Add a webhook destination">
       {secret && (
         <div
-          className="mb-4 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm"
+          className="mb-5 rounded-xl bw border-l-[6px] border-warn-line border-l-pink bg-warn-soft p-4 text-sm shadow-control dark:border-l-[length:var(--b-w)] dark:border-l-warn-line"
           role="status"
         >
-          <p className="font-semibold text-amber-900">
+          <p className="font-semibold text-warn">
             Copy the signing secret now. It will not be shown again.
           </p>
           <code className="mt-2 block break-all select-all">{secret}</code>

@@ -10,14 +10,52 @@ import {
   YAxis,
 } from 'recharts';
 import { formatClock } from '../lib/format';
+import { useTheme, type ResolvedTheme } from '../lib/theme';
 
 /**
- * Categorical slots 1–3 of the reference palette, validated for light mode (adjacent CVD ΔE ≥ 9.2,
- * normal-vision ΔE ≥ 27.6). Slot 3 is below 3:1 against the surface, so every chart offers a
- * data-table view (the required relief) and identity is never carried by colour alone.
+ * Categorical slots 1–3 of the reference palette, with separately selected steps per mode, each
+ * validated against this app's card surface (light #ffffff: adjacent CVD ΔE ≥ 9.2, normal-vision
+ * ΔE ≥ 27.6; dark #18181b: CVD ΔE ≥ 9.4, normal ΔE ≥ 26.5). Light slot 3 is below 3:1 against
+ * white, so every chart offers a data-table view (the required relief), and identity is never
+ * carried by colour alone.
  */
-export const SERIES_COLORS = ['#2a78d6', '#eb6834', '#1baf7a'] as const;
-const INK = { muted: '#898781', grid: '#e1e0d9', axis: '#c3c2b7', secondary: '#52514e' };
+const THEME: Record<
+  ResolvedTheme,
+  {
+    series: readonly string[];
+    ink: { muted: string; grid: string; axis: string; secondary: string; surface: string };
+    /** Tooltip frame: the brutalist light theme uses an ink border and hard shadow (§7.10). */
+    tooltip: { border: string; width: number; shadow: string };
+  }
+> = {
+  light: {
+    series: ['#2a78d6', '#eb6834', '#1baf7a'],
+    ink: {
+      muted: '#5b5b5b',
+      grid: '#ece7dc',
+      axis: '#c9c2b4',
+      secondary: '#3a3a3a',
+      surface: '#ffffff',
+    },
+    tooltip: { border: '#111111', width: 2, shadow: '2px 2px 0 0 #111111' },
+  },
+  dark: {
+    series: ['#3987e5', '#d95926', '#199e70'],
+    ink: {
+      muted: '#a1a1aa',
+      grid: '#2a2a2f',
+      axis: '#3f3f46',
+      secondary: '#d4d4d8',
+      surface: '#18181b',
+    },
+    tooltip: { border: '#3f3f46', width: 1, shadow: 'none' },
+  },
+};
+
+/** Series colours for the current theme, for legends drawn outside the chart. */
+export function useSeriesColors(): readonly string[] {
+  return THEME[useTheme().resolved].series;
+}
 
 export interface ChartSeries {
   name: string;
@@ -47,6 +85,7 @@ export function TimeSeriesChart({
   end,
   rangeLabel,
 }: Props) {
+  const { series: SERIES_COLORS, ink: INK, tooltip: TIP } = THEME[useTheme().resolved];
   const [showTable, setShowTable] = useState(false);
   const tableId = useId();
   const rows = useMemo<Row[]>(() => {
@@ -63,12 +102,12 @@ export function TimeSeriesChart({
   const longRange = end - start > 6 * 3_600_000;
 
   return (
-    <figure className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-      <figcaption className="mb-2 flex items-baseline justify-between gap-2">
-        <span className="font-semibold text-slate-900">
-          {title} <span className="font-normal text-slate-500">({unit})</span>
+    <figure className="frame p-4">
+      <figcaption className="mb-3 flex items-baseline justify-between gap-2">
+        <span className="font-display text-sm font-bold text-fg">
+          {title} <span className="font-normal text-fg-muted">({unit})</span>
         </span>
-        <span className="text-xs text-slate-500">{rangeLabel}</span>
+        <span className="text-xs text-fg-muted">{rangeLabel}</span>
       </figcaption>
 
       <div className="h-56">
@@ -103,8 +142,15 @@ export function TimeSeriesChart({
                 typeof value === 'number' ? `${formatValue(value)} ${unit}` : 'no data',
                 name,
               ]}
-              contentStyle={{ borderRadius: 6, borderColor: INK.grid, fontSize: 12 }}
+              contentStyle={{
+                borderRadius: 6,
+                border: `${TIP.width}px solid ${TIP.border}`,
+                boxShadow: TIP.shadow,
+                background: INK.surface,
+                fontSize: 12,
+              }}
               labelStyle={{ color: INK.secondary }}
+              itemStyle={{ color: INK.secondary }}
             />
             {series.length >= 2 && (
               <Legend iconType="plainline" wrapperStyle={{ fontSize: 12, color: INK.secondary }} />
@@ -118,7 +164,7 @@ export function TimeSeriesChart({
                 stroke={SERIES_COLORS[i % SERIES_COLORS.length]}
                 strokeWidth={2}
                 dot={false}
-                activeDot={{ r: 4, strokeWidth: 2, stroke: '#ffffff' }}
+                activeDot={{ r: 4, strokeWidth: 2, stroke: INK.surface }}
                 // Gaps mean "no data" and must not be bridged or drawn as zero (MET-006).
                 connectNulls={false}
                 isAnimationActive={false}
@@ -130,7 +176,7 @@ export function TimeSeriesChart({
 
       <button
         type="button"
-        className="mt-2 text-xs text-slate-600 underline"
+        className="mt-2 text-xs font-medium text-accent-text hover:underline"
         aria-expanded={showTable}
         aria-controls={tableId}
         onClick={() => setShowTable((v) => !v)}
@@ -140,7 +186,7 @@ export function TimeSeriesChart({
       {showTable && (
         <div id={tableId} className="mt-2 max-h-56 overflow-auto">
           <table className="w-full text-left text-xs tabular-nums">
-            <thead className="sticky top-0 bg-white text-slate-500">
+            <thead className="sticky top-0 bg-surface text-fg-muted">
               <tr>
                 <th className="py-1 pr-3 font-medium">Time</th>
                 {series.map((s) => (
@@ -152,8 +198,8 @@ export function TimeSeriesChart({
             </thead>
             <tbody>
               {rows.map((row) => (
-                <tr key={row.t} className="border-t border-slate-100">
-                  <td className="py-1 pr-3 text-slate-600">{formatClock(row.t, true)}</td>
+                <tr key={row.t} className="border-t border-divider">
+                  <td className="py-1 pr-3 text-fg-secondary">{formatClock(row.t, true)}</td>
                   {series.map((s, i) => {
                     const v = row[`s${i}`];
                     return (

@@ -58,9 +58,9 @@ export function LoginPage() {
           {login.isPending ? 'Signing in…' : 'Sign in'}
         </Button>
       </form>
-      <p className="mt-6 text-center text-sm text-slate-600">
+      <p className="mt-6 text-center text-sm text-fg-secondary">
         No account?{' '}
-        <Link to="/register" className="font-medium text-slate-900 underline">
+        <Link to="/register" className="font-medium text-accent-text hover:underline">
           Create one
         </Link>
       </p>

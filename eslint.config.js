@@ -16,6 +16,11 @@ export default tseslint.config(
     },
   },
   {
+    // Plain browser scripts served as-is (e.g. the pre-paint theme script).
+    files: ['apps/web/public/**/*.js'],
+    languageOptions: { globals: { ...globals.browser } },
+  },
+  {
     files: ['apps/web/**/*.{ts,tsx}'],
     languageOptions: { globals: { ...globals.browser } },
     plugins: { 'react-hooks': reactHooks },

@@ -3,7 +3,8 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Link, useOutletContext } from 'react-router';
 import { TimeSeriesChart, type ChartSeries } from '../components/TimeSeriesChart';
-import { Alert, Button, Spinner } from '../components/ui';
+import { RefreshCw } from 'lucide-react';
+import { Alert, Button, Spinner, inputClass, sectionLabel } from '../components/ui';
 import { ApiError, errorMessage } from '../lib/api';
 import {
   formatMs,
@@ -56,7 +57,7 @@ export function ProjectDashboardPage() {
         <div
           role="group"
           aria-label="Time range"
-          className="flex overflow-hidden rounded-md border border-slate-300"
+          className="flex gap-0.5 rounded-lg bw border-line bg-surface p-0.5 dark:bg-subtle"
         >
           {TIME_RANGES.map((r) => (
             <button
@@ -64,18 +65,22 @@ export function ProjectDashboardPage() {
               type="button"
               aria-pressed={r === range}
               onClick={() => setRange(r)}
-              className={`px-3 py-1.5 text-sm ${r === range ? 'bg-slate-900 text-white' : 'bg-white text-slate-700 hover:bg-slate-50'}`}
+              className={`rounded-md px-3 py-1 font-display text-sm font-semibold transition-colors ${
+                r === range
+                  ? 'bg-accent text-accent-fg dark:bg-surface dark:text-fg'
+                  : 'text-fg-muted hover:text-fg'
+              }`}
             >
               {r}
             </button>
           ))}
         </div>
-        <label className="text-sm text-slate-700">
+        <label className="text-sm text-fg-secondary">
           <span className="sr-only">Service</span>
           <select
             value={service}
             onChange={(e) => setService(e.target.value)}
-            className="rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm"
+            className={inputClass}
           >
             <option value="">All services</option>
             {services.data?.services.map((name) => (
@@ -85,10 +90,10 @@ export function ProjectDashboardPage() {
             ))}
           </select>
         </label>
-        <Button variant="secondary" onClick={() => void refresh()}>
+        <Button variant="secondary" icon={RefreshCw} onClick={() => void refresh()}>
           Refresh
         </Button>
-        <span className="text-xs text-slate-500">
+        <span className="text-xs text-fg-muted">
           Auto-refreshes every 30 s · times in {timeZoneLabel}
         </span>
       </div>
@@ -106,8 +111,11 @@ export function ProjectDashboardPage() {
         <Alert tone="info">
           No requests recorded {RANGE_LABEL[range].toLowerCase()}. Instrument a service with the SDK
           and send traffic. Keys and setup are under{' '}
-          <Link to={`/orgs/${org.id}/projects/${project.id}/settings`} className="underline">
-            Keys &amp; settings
+          <Link
+            to={`/orgs/${org.id}/projects/${project.id}/settings`}
+            className="font-medium underline"
+          >
+            Keys &amp; setup
           </Link>
           .
         </Alert>
@@ -143,7 +151,7 @@ export function ProjectDashboardPage() {
         </div>
       )}
 
-      <p className="text-xs text-slate-500">
+      <p className="text-xs text-fg-muted">
         Latency percentiles are estimated from fixed histogram buckets, so they are approximate.
         Metrics update after each 15 s collection; “no data” (gaps) means no requests, which is
         different from zero.
@@ -171,15 +179,15 @@ function ChartCard({
 }) {
   if (query.isPending) {
     return (
-      <div className="flex h-72 items-center justify-center rounded-lg border border-slate-200 bg-white">
+      <div className="flex h-72 items-center justify-center frame">
         <Spinner label={`Loading ${title.toLowerCase()}…`} />
       </div>
     );
   }
   if (query.isError) {
     return (
-      <div className="rounded-lg border border-slate-200 bg-white p-4">
-        <p className="mb-2 font-semibold text-slate-900">{title}</p>
+      <div className="frame p-4">
+        <p className="mb-2 font-semibold text-fg">{title}</p>
         <Alert>{errorMessage(query.error)}</Alert>
       </div>
     );
@@ -197,7 +205,7 @@ function ChartCard({
         rangeLabel={RANGE_LABEL[range]}
       />
       {result.noData && (
-        <p className="pointer-events-none absolute inset-x-0 top-1/2 text-center text-sm text-slate-500">
+        <p className="pointer-events-none absolute inset-x-0 top-1/2 text-center text-sm text-fg-muted">
           No data in this time range
         </p>
       )}
@@ -220,7 +228,7 @@ function LatencyChart({
   const queries = [p50, p95, p99];
   if (queries.some((q) => q.isPending)) {
     return (
-      <div className="flex h-72 items-center justify-center rounded-lg border border-slate-200 bg-white">
+      <div className="flex h-72 items-center justify-center frame">
         <Spinner label="Loading latency…" />
       </div>
     );
@@ -228,8 +236,8 @@ function LatencyChart({
   const failed = queries.find((q) => q.isError);
   if (failed) {
     return (
-      <div className="rounded-lg border border-slate-200 bg-white p-4">
-        <p className="mb-2 font-semibold text-slate-900">Latency</p>
+      <div className="frame p-4">
+        <p className="mb-2 font-semibold text-fg">Latency</p>
         <Alert>{errorMessage(failed.error)}</Alert>
       </div>
     );
@@ -252,7 +260,7 @@ function LatencyChart({
         rangeLabel={RANGE_LABEL[range]}
       />
       {results.every((r) => r.noData) && (
-        <p className="pointer-events-none absolute inset-x-0 top-1/2 text-center text-sm text-slate-500">
+        <p className="pointer-events-none absolute inset-x-0 top-1/2 text-center text-sm text-fg-muted">
           No data in this time range
         </p>
       )}
@@ -303,10 +311,12 @@ function SummaryTiles({
   return (
     <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
       {tiles.map((tile) => (
-        <div key={tile.label} className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
-          <dt className="text-xs text-slate-500">{tile.label}</dt>
-          <dd className="mt-1 text-xl font-semibold text-slate-900">{tile.value}</dd>
-          {tile.hint && <dd className="text-xs text-slate-500">{tile.hint}</dd>}
+        <div key={tile.label} className="frame p-3.5">
+          <dt className={sectionLabel}>{tile.label}</dt>
+          <dd className="mt-1 font-display text-xl font-bold tracking-tight text-fg tabular-nums">
+            {tile.value}
+          </dd>
+          {tile.hint && <dd className="text-xs text-fg-muted">{tile.hint}</dd>}
         </div>
       ))}
     </dl>

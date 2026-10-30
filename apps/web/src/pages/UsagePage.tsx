@@ -21,10 +21,10 @@ export function UsagePage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold text-slate-900">Usage</h1>
-        <p className="mt-1 text-sm text-slate-600">
-          Plan: <span className="font-medium text-slate-900">{u.plan.name}</span>. Counted per UTC
-          day ({u.dayUtc}); resets at {formatDateTime(u.resetsAt)} (00:00 UTC).
+        <h1 className="text-2xl font-semibold tracking-tight text-fg">Usage</h1>
+        <p className="mt-1 text-sm text-fg-secondary">
+          Plan: <span className="font-medium text-fg">{u.plan.name}</span>. Counted per UTC day (
+          {u.dayUtc}); resets at {formatDateTime(u.resetsAt)} (00:00 UTC).
         </p>
       </div>
 
@@ -51,7 +51,7 @@ export function UsagePage() {
             format={formatBytes}
           />
         </div>
-        <p className="mt-4 text-xs text-slate-500">
+        <p className="mt-4 text-xs text-fg-muted">
           Only valid records count. Batches that fail to reach storage are not counted.
           {u.rejected.records > 0 &&
             ` ${formatNumber(u.rejected.records)} records were rejected today in total (invalid or over quota).`}
@@ -60,11 +60,11 @@ export function UsagePage() {
 
       <Card title="By project (today)">
         {u.projects.length === 0 ? (
-          <p className="text-sm text-slate-600">No projects yet.</p>
+          <p className="text-sm text-fg-secondary">No projects yet.</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
-              <thead className="text-xs text-slate-500">
+              <thead className="text-xs text-fg-muted">
                 <tr>
                   <th className="py-2 pr-4 font-medium">Project</th>
                   <th className="py-2 pr-4 text-right font-medium">Accepted records</th>
@@ -73,12 +73,12 @@ export function UsagePage() {
                   <th className="py-2 text-right font-medium">Over quota</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-divider">
                 {u.projects.map((p) => (
                   <tr key={p.id}>
                     <td className="py-2 pr-4">
-                      <span className="font-medium text-slate-900">{p.name}</span>{' '}
-                      <span className="text-xs text-slate-500">
+                      <span className="font-medium text-fg">{p.name}</span>{' '}
+                      <span className="text-xs text-fg-muted">
                         {p.environment}
                         {p.deleted && ' · deleted'}
                       </span>
@@ -109,23 +109,23 @@ export function UsagePage() {
             <LimitRow label="Projects" meter={u.resources.projects} />
             <LimitRow label="Alert rules" meter={u.resources.alertRules} />
             <div className="flex justify-between">
-              <dt className="text-slate-600">Retention</dt>
+              <dt className="text-fg-secondary">Retention</dt>
               <dd>
                 metrics {u.retention.metricsDays} days · logs {u.retention.logsDays} days
               </dd>
             </div>
           </dl>
-          <p className="mt-3 text-xs text-slate-500">
+          <p className="mt-3 text-xs text-fg-muted">
             Retention is set for the whole deployment and shown read-only.
           </p>
         </Card>
 
         <Card title="Last 7 days">
           {u.history.length === 0 ? (
-            <p className="text-sm text-slate-600">No telemetry received yet.</p>
+            <p className="text-sm text-fg-secondary">No telemetry received yet.</p>
           ) : (
             <table className="w-full text-left text-sm">
-              <thead className="text-xs text-slate-500">
+              <thead className="text-xs text-fg-muted">
                 <tr>
                   <th className="py-1 pr-4 font-medium">Day (UTC)</th>
                   <th className="py-1 pr-4 text-right font-medium">Records</th>
@@ -160,17 +160,17 @@ function QuotaMeter({
 }) {
   const ratio = meter.limit > 0 ? Math.min(1, meter.used / meter.limit) : 1;
   const state = ratio >= 1 ? 'full' : ratio >= NEAR_LIMIT ? 'near' : 'ok';
-  const bar = { ok: 'bg-slate-700', near: 'bg-amber-500', full: 'bg-red-600' }[state];
+  const bar = { ok: 'bg-accent', near: 'bg-amber-500', full: 'bg-danger-solid' }[state];
   return (
     <div>
       <div className="flex items-baseline justify-between text-sm">
-        <span className="font-medium text-slate-900">{label}</span>
-        <span className="tabular-nums text-slate-700">
+        <span className="font-medium text-fg">{label}</span>
+        <span className="tabular-nums text-fg-secondary">
           {format(meter.used)} / {format(meter.limit)}
         </span>
       </div>
       <div
-        className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100"
+        className="mt-2 h-2 overflow-hidden rounded-full bg-subtle"
         role="progressbar"
         aria-label={label}
         aria-valuemin={0}
@@ -179,7 +179,7 @@ function QuotaMeter({
       >
         <div className={`h-full rounded-full ${bar}`} style={{ width: `${ratio * 100}%` }} />
       </div>
-      <p className="mt-1 text-xs text-slate-600">
+      <p className="mt-1 text-xs text-fg-secondary">
         {Math.floor(ratio * 100)}% used
         {state === 'near' && ' · ▲ nearing the daily limit'}
         {state === 'full' && ' · ✕ limit reached'}
@@ -191,7 +191,7 @@ function QuotaMeter({
 function LimitRow({ label, meter }: { label: string; meter: Meter }) {
   return (
     <div className="flex justify-between">
-      <dt className="text-slate-600">{label}</dt>
+      <dt className="text-fg-secondary">{label}</dt>
       <dd className="tabular-nums">
         {meter.used} / {meter.limit}
       </dd>

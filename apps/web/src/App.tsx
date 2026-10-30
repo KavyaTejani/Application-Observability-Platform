@@ -3,12 +3,8 @@ import { lazy, Suspense, type ReactNode } from 'react';
 import { createBrowserRouter, Link, RouterProvider } from 'react-router';
 import { AppLayout } from './pages/AppLayout';
 import { LoginPage } from './pages/LoginPage';
-import { OverviewPage } from './pages/OverviewPage';
-import { NotificationsPage } from './pages/NotificationsPage';
 import { ProjectLayout, ProjectSettingsPage } from './pages/ProjectPage';
-import { ProjectsPage } from './pages/ProjectsPage';
 import { RegisterPage } from './pages/RegisterPage';
-import { StatusPage } from './pages/StatusPage';
 import { RedirectIfAuthenticated, RequireAuth } from './routes/guards';
 import { Spinner } from './components/ui';
 
@@ -27,6 +23,22 @@ const IncidentPage = lazy(() =>
 const UsagePage = lazy(() => import('./pages/UsagePage').then((m) => ({ default: m.UsagePage })));
 const OperatorPage = lazy(() =>
   import('./pages/OperatorPage').then((m) => ({ default: m.OperatorPage })),
+);
+
+const OverviewPage = lazy(() =>
+  import('./pages/OverviewPage').then((m) => ({ default: m.OverviewPage })),
+);
+const ProjectsPage = lazy(() =>
+  import('./pages/ProjectsPage').then((m) => ({ default: m.ProjectsPage })),
+);
+const NotificationsPage = lazy(() =>
+  import('./pages/NotificationsPage').then((m) => ({ default: m.NotificationsPage })),
+);
+const SettingsPage = lazy(() =>
+  import('./pages/SettingsPage').then((m) => ({ default: m.SettingsPage })),
+);
+const StatusPage = lazy(() =>
+  import('./pages/StatusPage').then((m) => ({ default: m.StatusPage })),
 );
 
 const page = (element: ReactNode, label = 'Loading…') => (
@@ -49,7 +61,7 @@ function NotFoundPage() {
 }
 
 const router = createBrowserRouter([
-  { path: '/status', element: <StatusPage /> },
+  { path: '/status', element: page(<StatusPage />) },
   // Operator access is a deployment token, not a customer session (PRD §12.8).
   { path: '/operator', element: page(<OperatorPage />) },
   {
@@ -68,9 +80,10 @@ const router = createBrowserRouter([
         path: '/orgs/:organizationId',
         element: <AppLayout />,
         children: [
-          { index: true, element: <OverviewPage /> },
-          { path: 'projects', element: <ProjectsPage /> },
-          { path: 'notifications', element: <NotificationsPage /> },
+          { index: true, element: page(<OverviewPage />) },
+          { path: 'projects', element: page(<ProjectsPage />) },
+          { path: 'notifications', element: page(<NotificationsPage />) },
+          { path: 'settings', element: page(<SettingsPage />) },
           { path: 'usage', element: page(<UsagePage />) },
           {
             path: 'projects/:projectId',

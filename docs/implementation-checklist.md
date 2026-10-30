@@ -265,3 +265,24 @@ query p95 21 ms. **Retention:** expired Loki logs deleted after 90 s in the shor
 
 **Deferred (documented in the roadmap):** browser-level E2E (Playwright), multi-instance and
 saturation load tests, demo video (recorded by the author).
+
+## Post-M8 — UI redesign and audit fixes
+
+- [x] Theme tokens (CSS variables) with light and dark modes; System / Light / Dark toggle applied
+      before first paint (no flash); self-hosted fonts and icon set; CSP unchanged
+- [x] **Neo-brutalist light theme** to the spec in [`ui_theme.md`](ui_theme.md): 2 px ink borders,
+      hard shadows, press motion (off under reduced motion), lavender accent outside the status
+      hues, Space Grotesk / Inter / JetBrains Mono; every text pair measured (≥ 4.5:1); data
+      (charts, tables, logs) stays on plain white. Dark mode keeps its calm look until phase 2.
+- [x] Accessibility fix: text on the green "good" badge is ink (white was 3.35:1)
+- [x] Sidebar navigation matching the PRD (§13.1) with organization and project switchers;
+      organization **Settings** page (details, retention, members)
+- [x] Alert rules can be **edited** in the UI (§13.2 #6); metric and operator stay fixed
+- [x] Bug fix: editing a rule now enforces the threshold bounds of its metric (create already
+      did); covered by a new test
+- [x] Chart colours re-validated for the dark surface; status colours stay fixed in both themes
+- [x] Main bundle reduced to 363 kB by lazy-loading secondary pages
+
+**Verification (2026-10-30):** lint, format, type-check, build clean; `npm test` 337/337 passed;
+every page screenshotted in light and dark mode at desktop and phone widths.
+

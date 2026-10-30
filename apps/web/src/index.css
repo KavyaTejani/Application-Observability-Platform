@@ -1,1 +1,255 @@
 @import 'tailwindcss';
+@import '@fontsource-variable/inter';
+@import '@fontsource-variable/space-grotesk';
+@import '@fontsource-variable/jetbrains-mono';
+
+/*
+ * Design tokens. Components use only these semantic names (bg-surface, text-fg-muted,
+ * border-line, shadow-card, rounded-lg, …), never raw palette steps, so a theme is one block of
+ * variables. The resolved theme is set on <html data-theme> by /theme-init.js before first paint.
+ *
+ * Light = neo-brutalist (docs/ui_theme.md). Dark = the calm theme, unchanged until phase 2:
+ * its shape tokens (1 px borders, soft shadows, no press movement) reproduce the earlier look.
+ */
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
+
+:root {
+  color-scheme: light;
+  /* Surfaces and ink (§2.1) */
+  --c-canvas: #fbf7ef;
+  --c-surface: #ffffff;
+  --c-subtle: #f2ede2;
+  --c-ink: #111111;
+  --c-line: #111111;
+  --c-line-strong: #111111;
+  --c-divider: #d9d3c7;
+  --c-fg: #111111;
+  --c-fg-secondary: #3a3a3a;
+  --c-fg-muted: #5b5b5b;
+  /* Accent palette, never a state (§2.2) */
+  --c-accent: #b4a5ff;
+  --c-accent-hover: #a594ff;
+  --c-accent-fg: #111111;
+  --c-accent-soft: #e9e4ff;
+  --c-accent-text: #4527c9;
+  --c-pink: #ff90e8;
+  --c-sky: #a5dcff;
+  /* Feedback banners (§2.4) */
+  --c-ok: #05603a;
+  --c-ok-soft: #dcf7e7;
+  --c-ok-line: #111111;
+  --c-warn: #8a4b00;
+  --c-warn-soft: #fff3d6;
+  --c-warn-line: #111111;
+  --c-danger: #b42318;
+  --c-danger-soft: #ffe4e1;
+  --c-danger-line: #111111;
+  --c-danger-solid: #d03b3b;
+  --c-info-bg: #a5dcff;
+  --c-info-fg: #111111;
+  --c-info-line: #111111;
+  --c-overlay: rgb(17 17 17 / 0.5);
+  /* Shape (§5) and motion (§6) */
+  --b-w: 2px;
+  --b-w-thin: 1.5px;
+  --r-sm: 4px;
+  --r: 8px;
+  --r-lg: 10px;
+  --sh-chip: 2px 2px 0 0 var(--c-ink);
+  --sh-control: 3px 3px 0 0 var(--c-ink);
+  --sh-control-hover: 4px 4px 0 0 var(--c-ink);
+  --sh-card: 5px 5px 0 0 var(--c-ink);
+  --sh-card-hover: 7px 7px 0 0 var(--c-ink);
+  --sh-focus: 3px 3px 0 0 #4527c9;
+  --lift: -1px;
+  --lift-card: -2px;
+  --press: 3px;
+  --press-card: 2px;
+  /* Typography (§4) */
+  --c-font-display:
+    'Space Grotesk Variable', 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
+}
+
+[data-theme='dark'] {
+  color-scheme: dark;
+  --c-canvas: #09090b;
+  --c-surface: #18181b;
+  --c-subtle: #222226;
+  --c-ink: #3f3f46;
+  --c-line: #2e2e33;
+  --c-line-strong: #3f3f46;
+  --c-divider: #2e2e33;
+  --c-fg: #fafafa;
+  --c-fg-secondary: #d4d4d8;
+  --c-fg-muted: #a1a1aa;
+  --c-accent: #4f46e5;
+  --c-accent-hover: #6366f1;
+  --c-accent-fg: #ffffff;
+  --c-accent-soft: #1e1b4b;
+  --c-accent-text: #a5b4fc;
+  --c-pink: #4f46e5;
+  --c-sky: #222226;
+  --c-ok: #6ee7b7;
+  --c-ok-soft: #052e22;
+  --c-ok-line: #065f46;
+  --c-warn: #fcd34d;
+  --c-warn-soft: #2d1f05;
+  --c-warn-line: #78350f;
+  --c-danger: #fca5a5;
+  --c-danger-soft: #2a0f0f;
+  --c-danger-line: #7f1d1d;
+  --c-danger-solid: #dc2626;
+  --c-info-bg: #222226;
+  --c-info-fg: #d4d4d8;
+  --c-info-line: #2e2e33;
+  --c-overlay: rgb(0 0 0 / 0.6);
+  --b-w: 1px;
+  --b-w-thin: 1px;
+  --r-sm: 6px;
+  --r: 8px;
+  --r-lg: 12px;
+  --sh-chip: none;
+  --sh-control: 0 1px 2px 0 rgb(0 0 0 / 0.3);
+  --sh-control-hover: 0 1px 2px 0 rgb(0 0 0 / 0.3);
+  --sh-card: 0 1px 3px 0 rgb(0 0 0 / 0.3), 0 1px 2px -1px rgb(0 0 0 / 0.3);
+  --sh-card-hover: 0 1px 3px 0 rgb(0 0 0 / 0.3), 0 1px 2px -1px rgb(0 0 0 / 0.3);
+  --sh-focus: 0 0 0 3px rgb(79 70 229 / 0.35);
+  --lift: 0px;
+  --lift-card: 0px;
+  --press: 0px;
+  --press-card: 0px;
+  --c-font-display: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
+}
+
+@theme inline {
+  --font-sans: 'Inter Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-display: var(--c-font-display);
+  --font-mono: 'JetBrains Mono Variable', ui-monospace, 'Cascadia Code', Consolas, monospace;
+
+  --color-canvas: var(--c-canvas);
+  --color-surface: var(--c-surface);
+  --color-subtle: var(--c-subtle);
+  --color-ink: var(--c-ink);
+  --color-line: var(--c-line);
+  --color-line-strong: var(--c-line-strong);
+  --color-divider: var(--c-divider);
+  --color-fg: var(--c-fg);
+  --color-fg-secondary: var(--c-fg-secondary);
+  --color-fg-muted: var(--c-fg-muted);
+  --color-accent: var(--c-accent);
+  --color-accent-hover: var(--c-accent-hover);
+  --color-accent-fg: var(--c-accent-fg);
+  --color-accent-soft: var(--c-accent-soft);
+  --color-accent-text: var(--c-accent-text);
+  --color-pink: var(--c-pink);
+  --color-sky: var(--c-sky);
+  --color-ok: var(--c-ok);
+  --color-ok-soft: var(--c-ok-soft);
+  --color-ok-line: var(--c-ok-line);
+  --color-warn: var(--c-warn);
+  --color-warn-soft: var(--c-warn-soft);
+  --color-warn-line: var(--c-warn-line);
+  --color-danger: var(--c-danger);
+  --color-danger-soft: var(--c-danger-soft);
+  --color-danger-line: var(--c-danger-line);
+  --color-danger-solid: var(--c-danger-solid);
+  --color-info-bg: var(--c-info-bg);
+  --color-info-fg: var(--c-info-fg);
+  --color-info-line: var(--c-info-line);
+  --color-overlay: var(--c-overlay);
+
+  /* Radii follow the theme: rounded-sm / rounded-lg / rounded-xl. */
+  --radius-sm: var(--r-sm);
+  --radius-lg: var(--r);
+  --radius-xl: var(--r-lg);
+
+  --shadow-chip: var(--sh-chip);
+  --shadow-control: var(--sh-control);
+  --shadow-card: var(--sh-card);
+  --shadow-focus: var(--sh-focus);
+}
+
+/* Theme-width borders: 2 px in the neo-brutalist light theme, 1 px in dark. */
+@utility bw {
+  border-style: solid;
+  border-width: var(--b-w);
+}
+@utility bw-b {
+  border-bottom-style: solid;
+  border-bottom-width: var(--b-w);
+}
+@utility bw-t {
+  border-top-style: solid;
+  border-top-width: var(--b-w);
+}
+@utility bw-r {
+  border-right-style: solid;
+  border-right-width: var(--b-w);
+}
+@utility bw-thin {
+  border-style: solid;
+  border-width: var(--b-w-thin);
+}
+
+/* The standard framed surface: cards, chart frames, tiles (§7.3). */
+@utility frame {
+  background-color: var(--c-surface);
+  border: var(--b-w) solid var(--c-line);
+  border-radius: var(--r-lg);
+  box-shadow: var(--sh-card);
+}
+
+/* Pressable controls (§6): lift on hover, push in when pressed. No movement in dark mode. */
+@utility press {
+  transition:
+    transform 80ms ease-out,
+    box-shadow 80ms ease-out,
+    background-color 80ms ease-out;
+  &:hover:not(:disabled) {
+    transform: translate(var(--lift), var(--lift));
+    box-shadow: var(--sh-control-hover);
+  }
+  &:active:not(:disabled) {
+    transform: translate(var(--press), var(--press));
+    box-shadow: none;
+  }
+}
+@utility press-card {
+  transition:
+    transform 80ms ease-out,
+    box-shadow 80ms ease-out;
+  &:hover {
+    transform: translate(var(--lift-card), var(--lift-card));
+    box-shadow: var(--sh-card-hover);
+  }
+  &:active {
+    transform: translate(var(--press-card), var(--press-card));
+    box-shadow: var(--sh-chip);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .press,
+  .press-card {
+    transition: none !important;
+    transform: none !important;
+  }
+}
+
+body {
+  background: var(--c-canvas);
+  color: var(--c-fg);
+  font-feature-settings: 'cv11', 'ss01';
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--c-font-display);
+}
+
+/* Keyboard focus is always visible, in the accent text colour. */
+:focus-visible {
+  outline: 3px solid var(--c-accent-text);
+  outline-offset: 2px;
+}

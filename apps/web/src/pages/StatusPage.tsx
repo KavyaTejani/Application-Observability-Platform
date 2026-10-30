@@ -12,11 +12,11 @@ const OVERALL_LABEL: Record<ReadinessReport['status'], string> = {
 function describeDependency(dep: DependencyStatus): { text: string; className: string } {
   switch (dep.status) {
     case 'up':
-      return { text: `✔ up (${dep.latencyMs} ms)`, className: 'text-emerald-700' };
+      return { text: `✔ up (${dep.latencyMs} ms)`, className: 'text-ok' };
     case 'down':
-      return { text: '✖ down', className: 'text-red-700' };
+      return { text: '✖ down', className: 'text-danger' };
     case 'not_configured':
-      return { text: '— not configured', className: 'text-slate-500' };
+      return { text: '— not configured', className: 'text-fg-muted' };
   }
 }
 
@@ -41,11 +41,11 @@ export function StatusPage() {
 
   return (
     <main className="mx-auto max-w-2xl px-4 py-12">
-      <Link to="/" className="text-sm text-slate-600 underline">
+      <Link to="/" className="text-sm text-fg-muted hover:text-fg">
         ← Back to the app
       </Link>
-      <h1 className="mt-4 text-2xl font-semibold">System status</h1>
-      <p className="mt-2 text-slate-600">Live readiness of the platform and its backends.</p>
+      <h1 className="mt-4 text-2xl font-semibold tracking-tight text-fg">System status</h1>
+      <p className="mt-2 text-fg-secondary">Live readiness of the platform and its backends.</p>
 
       <div className="mt-6" aria-live="polite">
         <Card>
@@ -75,7 +75,7 @@ export function StatusPage() {
                   );
                 })}
               </ul>
-              <p className="mt-4 text-xs text-slate-500">
+              <p className="mt-4 text-xs text-fg-muted">
                 Checked {new Date(status.data.checkedAt).toLocaleTimeString()}
               </p>
             </>

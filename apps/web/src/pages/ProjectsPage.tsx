@@ -4,64 +4,82 @@ import {
   toFieldErrors,
   type FieldErrors,
 } from '@aop/validation';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { ArrowRight, FolderKanban } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
 import { Link, useOutletContext } from 'react-router';
-import { Alert, Button, Card, Spinner, TextField } from '../components/ui';
+import { FreshnessBadge } from '../components/StatusBadge';
+import {
+  Alert,
+  Button,
+  Card,
+  EmptyState,
+  PageHeader,
+  Pill,
+  SelectField,
+  Spinner,
+  TextField,
+} from '../components/ui';
 import { api, ApiError, errorMessage, hasFieldErrors } from '../lib/api';
+import { formatRelative } from '../lib/format';
+import { projectsKey, useProjects } from '../lib/projects';
 import type { OrganizationSummary, Project } from '../lib/types';
 
-export const projectsKey = (organizationId: string) => [
-  'organizations',
-  organizationId,
-  'projects',
-];
+export { projectsKey };
 
 export function ProjectsPage() {
   const org = useOutletContext<OrganizationSummary>();
   const isOwner = org.role === 'owner';
-  const projects = useQuery({
-    queryKey: projectsKey(org.id),
-    queryFn: ({ signal }) =>
-      api<{ projects: Project[] }>(`/organizations/${org.id}/projects`, { signal }),
-  });
+  const projects = useProjects(org.id);
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold text-slate-900">Projects</h1>
-        <p className="mt-1 text-sm text-slate-600">
-          A project is one monitored service in one environment. Each has its own ingestion keys.
-        </p>
-      </div>
+      <PageHeader
+        title="Projects"
+        description="A project is one monitored service in one environment. Each has its own ingestion keys."
+      />
 
-      <Card title="Your projects">
-        {projects.isPending && <Spinner />}
-        {projects.isError && <Alert>{errorMessage(projects.error)}</Alert>}
-        {projects.data?.projects.length === 0 && (
-          <p className="text-sm text-slate-600">
-            No projects yet.{' '}
-            {isOwner ? 'Create one below.' : 'Ask an organization owner to create one.'}
-          </p>
-        )}
-        {projects.data && projects.data.projects.length > 0 && (
-          <ul className="divide-y divide-slate-100">
-            {projects.data.projects.map((project) => (
-              <li key={project.id} className="flex items-center justify-between py-3">
-                <Link
-                  to={`/orgs/${org.id}/projects/${project.id}`}
-                  className="font-medium text-slate-900 underline-offset-2 hover:underline"
-                >
-                  {project.name}
-                </Link>
-                <span className="rounded bg-slate-100 px-2 py-0.5 text-xs text-slate-700">
-                  {project.environment}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </Card>
+      {projects.isPending && <Spinner />}
+      {projects.isError && <Alert>{errorMessage(projects.error)}</Alert>}
+      {projects.data?.projects.length === 0 && (
+        <Card>
+          <EmptyState icon={FolderKanban} title="No projects yet">
+            {isOwner
+              ? 'Create your first project below.'
+              : 'Ask an organization owner to create one.'}
+          </EmptyState>
+        </Card>
+      )}
+      {projects.data && projects.data.projects.length > 0 && (
+        <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {projects.data.projects.map((project) => (
+            <li key={project.id}>
+              <Link
+                to={`/orgs/${org.id}/projects/${project.id}`}
+                className="group press-card flex h-full flex-col frame p-5 dark:hover:border-accent"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <span className="flex size-9 items-center justify-center rounded-lg bg-accent-soft text-accent-text">
+                    <FolderKanban className="size-4" aria-hidden="true" />
+                  </span>
+                  <FreshnessBadge lastTelemetryAt={project.lastTelemetryAt} />
+                </div>
+                <p className="mt-4 font-semibold text-fg">{project.name}</p>
+                <p className="mt-1 text-xs text-fg-muted">
+                  Last data {formatRelative(project.lastTelemetryAt)}
+                </p>
+                <div className="mt-4 flex items-center justify-between">
+                  <Pill>{project.environment}</Pill>
+                  <ArrowRight
+                    className="size-4 text-fg-muted transition-transform group-hover:translate-x-0.5 group-hover:text-accent-text"
+                    aria-hidden="true"
+                  />
+                </div>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
 
       {isOwner && <CreateProjectForm organizationId={org.id} />}
     </div>
@@ -100,30 +118,23 @@ function CreateProjectForm({ organizationId }: { organizationId: string }) {
   };
 
   return (
-    <Card title="Create a project">
+    <Card
+      title="Create a project"
+      description="Names are unique per organization. The environment cannot be changed later."
+    >
       <form
         onSubmit={onSubmit}
         noValidate
         className="grid gap-4 sm:grid-cols-[1fr_auto_auto] sm:items-end"
       >
         <TextField label="Name" name="name" placeholder="e.g. checkout-api" error={fields.name} />
-        <div>
-          <label htmlFor="environment" className="block text-sm font-medium text-slate-700">
-            Environment
-          </label>
-          <select
-            id="environment"
-            name="environment"
-            defaultValue="development"
-            className="mt-1 block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
-          >
-            {ENVIRONMENTS.map((env) => (
-              <option key={env} value={env}>
-                {env}
-              </option>
-            ))}
-          </select>
-        </div>
+        <SelectField label="Environment" name="environment" defaultValue="development">
+          {ENVIRONMENTS.map((env) => (
+            <option key={env} value={env}>
+              {env}
+            </option>
+          ))}
+        </SelectField>
         <Button type="submit" disabled={create.isPending}>
           {create.isPending ? 'Creating…' : 'Create project'}
         </Button>

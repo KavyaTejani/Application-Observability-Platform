@@ -73,17 +73,20 @@ export function OperatorPage() {
   const onSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const value = String(new FormData(event.currentTarget).get('token') ?? '').trim();
-    if (value) setToken(value);
+    if (!value) return;
+    // Re-submitting the same token after an error retries instead of doing nothing.
+    if (value === token) void report.refetch();
+    else setToken(value);
   };
 
   return (
     <main className="mx-auto max-w-5xl space-y-6 px-4 py-10">
       <div>
-        <Link to="/" className="text-sm text-slate-600 underline">
+        <Link to="/" className="text-sm text-fg-muted hover:text-fg">
           ← Back to the app
         </Link>
-        <h1 className="mt-4 text-2xl font-semibold">Operator health</h1>
-        <p className="mt-1 text-sm text-slate-600">
+        <h1 className="mt-4 text-2xl font-semibold tracking-tight text-fg">Operator health</h1>
+        <p className="mt-1 text-sm text-fg-secondary">
           The platform&apos;s own health: dependencies, the telemetry pipeline, alerting, and
           notifications. Aggregates only; no customer data.
         </p>
@@ -96,7 +99,7 @@ export function OperatorPage() {
               <Alert>{report.error.message}</Alert>
             </div>
           )}
-          <form onSubmit={onSubmit} className="flex flex-wrap items-end gap-3">
+          <form onSubmit={onSubmit} className="flex flex-wrap items-start gap-3">
             <div className="min-w-64 flex-1">
               <TextField
                 label="Token"
@@ -106,7 +109,9 @@ export function OperatorPage() {
                 hint="The OPERATOR_TOKEN of this deployment. Kept in this tab's memory only."
               />
             </div>
-            <Button type="submit">Open</Button>
+            <Button type="submit" className="sm:mt-7">
+              Open
+            </Button>
           </form>
         </Card>
       ) : report.isPending ? (
@@ -127,7 +132,7 @@ function ReportView({ report, onLock }: { report: OperatorReport; onLock: () => 
     (pipeline.backends['loki/failure'] ?? 0) + (pipeline.backends['prometheus/failure'] ?? 0);
   return (
     <div className="space-y-6" aria-live="polite">
-      <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500">
+      <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-fg-muted">
         <span>
           Updated {formatDateTime(report.generatedAt)} · refreshes every 10 s · counters since this
           instance started ({formatRelative(pipeline.since)})
@@ -259,16 +264,15 @@ const READINESS_LABEL: Record<ReadinessReport['status'], string> = {
 };
 
 function DependencyText({ dep }: { dep: DependencyStatus }) {
-  if (dep.status === 'up')
-    return <span className="text-emerald-700">✔ up ({dep.latencyMs} ms)</span>;
-  if (dep.status === 'down') return <span className="text-red-700">✖ down</span>;
-  return <span className="text-slate-500">— not configured</span>;
+  if (dep.status === 'up') return <span className="text-ok">✔ up ({dep.latencyMs} ms)</span>;
+  if (dep.status === 'down') return <span className="text-danger">✖ down</span>;
+  return <span className="text-fg-muted">— not configured</span>;
 }
 
 function Row({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex justify-between gap-4">
-      <dt className="text-slate-600">{label}</dt>
+      <dt className="text-fg-secondary">{label}</dt>
       <dd className="text-right tabular-nums">{value}</dd>
     </div>
   );
@@ -288,9 +292,9 @@ function CountList({
   const entries = Object.entries(counts).filter(([, n]) => n > 0);
   return (
     <div>
-      <h3 className="mb-1 text-sm font-medium text-slate-900">{title}</h3>
+      <h3 className="mb-1 text-sm font-medium text-fg">{title}</h3>
       {entries.length === 0 ? (
-        <p className="text-sm text-slate-500">{empty}</p>
+        <p className="text-sm text-fg-muted">{empty}</p>
       ) : (
         <dl className="space-y-1 text-sm">
           {entries.map(([key, n]) => (
