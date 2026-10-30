@@ -17,10 +17,15 @@ services:
       - '127.0.0.1:27017:27017'
     networks: [backend]
     healthcheck:
-      test: ['CMD', 'mongosh', '--quiet', '--eval', 'db.adminCommand("ping").ok']
+      test: ['CMD', 'mongosh', '--quiet', '--norc', '--eval', 'db.adminCommand("ping").ok']
+      # mongosh is a Node.js program and can take several seconds to start on small machines
+      # (such as 2-core CI runners), so the check gets a generous timeout and a start-up grace
+      # period during which failures do not count.
       interval: 10s
-      timeout: 5s
-      retries: 5
+      timeout: 15s
+      retries: 6
+      start_period: 60s
+      start_interval: 2s
 
   redis:
     image: redis:7.4-alpine

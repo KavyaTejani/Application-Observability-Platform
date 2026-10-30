@@ -25,7 +25,7 @@ jobs:
           cache: npm
 
       - name: Start backends (MongoDB, Redis, Loki)
-        run: docker compose -f infra/compose.yaml up -d --wait mongodb redis loki
+        run: docker compose -f infra/compose.yaml up -d --wait --wait-timeout 180 mongodb redis loki
 
       - run: npm ci
       - run: npm run lint
