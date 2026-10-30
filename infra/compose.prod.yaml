@@ -59,7 +59,9 @@ services:
 
   mongodb:
     <<: *restart
-    image: mongo:8.0
+    # MongoDB 8.0 refuses to start on Linux kernel 6.19+ (SERVER-121912, a tcmalloc/rseq bug).
+    # On such hosts (e.g. current GitHub runners), set MONGO_IMAGE=mongo:7.0; the app supports both.
+    image: ${MONGO_IMAGE:-mongo:8.0}
     command: ['--bind_ip_all', '--quiet']
     volumes:
       - mongo-data:/data/db

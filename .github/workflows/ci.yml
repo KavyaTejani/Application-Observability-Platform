@@ -25,6 +25,10 @@ jobs:
           cache: npm
 
       - name: Start backends (MongoDB, Redis, Loki)
+        # The runners' Linux kernel (6.19+) cannot run MongoDB 8.0 (SERVER-121912); 7.0 is unaffected
+        # and the full suite passes on both.
+        env:
+          MONGO_IMAGE: mongo:7.0
         run: docker compose -f infra/compose.yaml up -d --wait --wait-timeout 180 mongodb redis loki
 
       - run: npm ci

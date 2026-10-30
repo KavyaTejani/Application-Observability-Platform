@@ -21,6 +21,9 @@ docker compose -f infra/compose.prod.yaml --env-file .env.prod up -d --build
 - Data lives in named volumes (`mongo-data`, `redis-data`, `prometheus-data`, `loki-data`) and
   survives `docker compose restart` and image upgrades. `down -v` deletes it.
 - After deploying, run `npm run check:exposure -- https://your-host` from another machine.
+- **Linux kernel 6.19 or newer:** MongoDB 8.0 refuses to start there (a known MongoDB bug,
+  SERVER-121912). Add `MONGO_IMAGE=mongo:7.0` to `.env.prod`. The platform is tested on both
+  versions, and CI runs on 7.0 for this reason.
 
 ## 2. Hosted demo (Render free tier) — current public deployment
 
