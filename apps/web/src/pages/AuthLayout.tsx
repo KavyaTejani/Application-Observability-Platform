@@ -13,7 +13,7 @@ const FEATURES = [
 export function AuthLayout({ title, children }: { title: string; children: ReactNode }) {
   return (
     <main className="grid min-h-screen lg:grid-cols-2">
-      <section className="hidden flex-col justify-between bw-r border-ink bg-accent p-10 text-ink lg:flex dark:border-transparent dark:bg-[#111114] dark:text-zinc-100">
+      <section className="hidden flex-col justify-between bw-r border-ink bg-accent p-10 text-ink select-none lg:flex dark:border-transparent dark:bg-[#111114] dark:text-zinc-100">
         <Link to="/" className="flex items-center gap-2 font-display font-bold">
           <span className="flex size-8 items-center justify-center rounded-lg bw border-ink bg-pink shadow-chip dark:border-transparent dark:bg-accent">
             <Activity className="size-4" strokeWidth={ICON_STROKE} aria-hidden="true" />

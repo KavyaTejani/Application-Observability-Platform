@@ -67,14 +67,14 @@ export function AppLayout() {
         />
       )}
       <aside
-        className={`fixed inset-y-0 left-0 z-40 flex w-64 flex-col bw-r border-line bg-canvas transition-transform dark:bg-surface lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-40 flex w-64 flex-col bw-r border-line bg-canvas transition-transform select-none dark:bg-surface lg:translate-x-0 ${
           menuOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
         <Sidebar org={current} organizations={organizations} onClose={() => setMenuOpen(false)} />
       </aside>
 
-      <header className="sticky top-0 z-20 flex h-14 items-center gap-3 bw-b border-line bg-surface px-4 sm:px-6 dark:bg-surface/80 dark:backdrop-blur">
+      <header className="sticky top-0 z-20 flex h-14 items-center gap-3 bw-b border-line bg-surface px-4 select-none sm:px-6 dark:bg-surface/80 dark:backdrop-blur">
         <button
           type="button"
           className="-ml-1 rounded-lg p-1.5 text-fg-secondary hover:bg-subtle lg:hidden"

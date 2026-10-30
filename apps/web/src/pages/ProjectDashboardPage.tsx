@@ -57,7 +57,7 @@ export function ProjectDashboardPage() {
         <div
           role="group"
           aria-label="Time range"
-          className="flex gap-0.5 rounded-lg bw border-line bg-surface p-0.5 dark:bg-subtle"
+          className="flex gap-0.5 rounded-lg bw border-line bg-surface p-0.5 select-none dark:bg-subtle"
         >
           {TIME_RANGES.map((r) => (
             <button

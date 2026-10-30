@@ -8,7 +8,9 @@ import { useId } from 'react';
 import { AlertTriangle, CheckCircle2, Info, Loader2, XCircle, type LucideIcon } from 'lucide-react';
 
 /*
- * Shared UI primitives (docs/ui_theme.md §7). Colours, border widths, radii, shadows, and press
+ * Shared UI primitives (docs/ui_theme.md §7). Controls and labels are not text-selectable
+ * (`select-none`), so double-clicking a button never highlights it; content stays selectable,
+ * and secrets/IDs select in one click (`select-all`, §7.12). Colours, border widths, radii, shadows, and press
  * movement all come from theme tokens in index.css, so the same markup renders the
  * neo-brutalist light theme and the calm dark theme.
  */
@@ -47,7 +49,7 @@ export function Button({
     <button
       type="button"
       {...props}
-      className={`inline-flex shrink-0 items-center justify-center rounded-lg font-display font-semibold whitespace-nowrap disabled:cursor-not-allowed ${sizing} ${BUTTON[variant]} ${className}`}
+      className={`inline-flex shrink-0 items-center justify-center rounded-lg font-display font-semibold whitespace-nowrap select-none disabled:cursor-not-allowed ${sizing} ${BUTTON[variant]} ${className}`}
     >
       {Icon && (
         <Icon
@@ -233,7 +235,7 @@ export function PageHeader({
 
 /** Section label: small uppercase display type (sidebar groups, stat labels, table headers). */
 export const sectionLabel =
-  'font-display text-[11px] font-bold tracking-[0.08em] text-fg-muted uppercase';
+  'font-display text-[11px] font-bold tracking-[0.08em] text-fg-muted uppercase select-none';
 
 /** Friendly empty state: what is missing and what to do next. */
 export function EmptyState({
@@ -295,7 +297,7 @@ export function Pill({
 }) {
   return (
     <span
-      className={`inline-flex items-center gap-1 rounded-full bw-thin px-2 py-0.5 text-xs font-medium ${
+      className={`inline-flex items-center gap-1 rounded-full bw-thin px-2 py-0.5 text-xs font-medium select-none ${
         tone === 'accent'
           ? 'border-ink bg-accent-soft text-accent-text dark:border-transparent'
           : 'border-ink bg-surface text-fg dark:border-transparent dark:bg-subtle dark:text-fg-secondary'

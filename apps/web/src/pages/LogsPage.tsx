@@ -30,7 +30,7 @@ const SEVERITY_STYLE: Record<Severity, string> = {
 function SeverityBadge({ severity }: { severity: Severity }) {
   return (
     <span
-      className={`inline-block w-14 rounded-sm bw-thin border-ink px-1.5 py-0.5 text-center font-mono text-[11px] font-semibold dark:border-transparent ${SEVERITY_STYLE[severity]}`}
+      className={`inline-block w-14 rounded-sm bw-thin border-ink px-1.5 py-0.5 text-center font-mono text-[11px] font-semibold select-none dark:border-transparent ${SEVERITY_STYLE[severity]}`}
     >
       {severity}
     </span>
@@ -129,7 +129,7 @@ export function LogsPage() {
           placeholder="e.g. timeout"
           error={fieldErrors.contains}
         />
-        <fieldset className="md:col-span-3">
+        <fieldset className="select-none md:col-span-3">
           <legend className="text-sm font-medium text-fg">
             Severity <span className="font-normal text-fg-muted">(none selected = all)</span>
           </legend>
@@ -255,7 +255,7 @@ function LogRow({
             <dd>
               {entry.requestId ? (
                 <>
-                  <code>{entry.requestId}</code>{' '}
+                  <code className="select-all">{entry.requestId}</code>{' '}
                   <button
                     type="button"
                     className="ml-2 font-medium text-accent-text hover:underline"

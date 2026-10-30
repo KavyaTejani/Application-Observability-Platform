@@ -272,6 +272,18 @@ The chart **frame** follows the card spec; the **plot** stays quiet:
 - Expanded detail: subtle fill, 1 px divider; no shadows inside the list.
 - Severity filter chips: white with 2 px ink border; checked = lavender fill + `--shadow-sm`.
 
+### 7.12 Text selection
+
+Interface chrome is not text-selectable; content always is. Copying is never blocked: this is a
+developer tool, and keys, IDs, commands, and log text must be copyable (blocking copy would also
+protect nothing and would hurt accessibility).
+
+| Rule | Elements |
+|---|---|
+| `select-none` | Buttons, sidebar and top bar, project tabs, time-range control, filter chips, status/severity badges, pills, section labels and table headers, the sign-in feature panel |
+| Normal selection | Page and card text, descriptions, table cells, log messages and attributes, incident details, form fields |
+| `select-all` (one click selects the whole value) | One-time API key and signing secret, request IDs in the log detail, the SDK setup code block |
+
 ---
 
 ## 8. Layout and navigation

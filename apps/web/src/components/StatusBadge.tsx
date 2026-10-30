@@ -36,7 +36,7 @@ function Badge({
 }) {
   return (
     <span
-      className={`inline-flex items-center gap-1 rounded-full bw-thin border-ink px-2 py-0.5 text-xs font-semibold whitespace-nowrap ${STATUS[tone]} ${tone === 'neutral' ? 'dark:border-line-strong' : 'dark:border-transparent'}`}
+      className={`inline-flex items-center gap-1 rounded-full bw-thin border-ink px-2 py-0.5 text-xs font-semibold whitespace-nowrap select-none ${STATUS[tone]} ${tone === 'neutral' ? 'dark:border-line-strong' : 'dark:border-transparent'}`}
     >
       <Icon aria-hidden="true" strokeWidth={2.25} className="size-3.5" />
       {label}

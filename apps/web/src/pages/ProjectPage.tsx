@@ -86,7 +86,7 @@ export function ProjectLayout() {
           </span>
         </p>
       </div>
-      <nav aria-label="Project" className="flex gap-1 overflow-x-auto bw-b border-line">
+      <nav aria-label="Project" className="flex gap-1 overflow-x-auto bw-b border-line select-none">
         <NavLink to={base} end className={tab}>
           <Gauge className="size-4" aria-hidden="true" /> Metrics
         </NavLink>
@@ -384,7 +384,7 @@ function SdkSetupCard({ project }: { project: Project }) {
       title="Connect a service"
       description="Set these environment variables in the service you want to monitor, then verify the connection."
     >
-      <pre className="overflow-x-auto rounded-lg bw border-ink bg-[#111111] p-4 font-mono text-xs leading-relaxed text-[#f2ede2] dark:border-line">
+      <pre className="overflow-x-auto rounded-lg bw border-ink bg-[#111111] p-4 select-all font-mono text-xs leading-relaxed text-[#f2ede2] dark:border-line">
         {`AOP_ENDPOINT=${origin}
 AOP_API_KEY=<your key>
 AOP_SERVICE_NAME=${project.slug}
