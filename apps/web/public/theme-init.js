@@ -1,11 +1,11 @@
-// Applies the saved theme (light | dark | system) before first paint, so a dark-mode user never
-// sees a white flash. An external file, because the CSP forbids inline scripts.
+// Applies the saved theme (light | dark | system; light by default) before first paint, so a
+// dark-mode user never sees a white flash. An external file, because the CSP forbids inline scripts.
 (function () {
-  var pref = 'system';
+  var pref = 'light';
   try {
-    pref = localStorage.getItem('aop-theme') || 'system';
+    pref = localStorage.getItem('aop-theme') || 'light';
   } catch {
-    // Storage unavailable (private mode): follow the system.
+    // Storage unavailable (private mode): use the default light theme.
   }
   var dark =
     pref === 'dark' ||

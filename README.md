@@ -81,9 +81,9 @@ customer can never see another's data.
   accounts): dependency status, alert worker, ingestion accepted/rejected counts, quota
   rejections, backend failures, webhook attempts, and platform-wide state.
 - **Web app:** a sidebar layout following the product's navigation (Overview, Projects, Metrics,
-  Logs, Alerts, Usage, Notifications, Settings), with light and dark themes (follows the system
-  setting or a manual toggle). Every state has a text label and an icon, never colour alone, and
-  every chart has a data-table view.
+  Logs, Alerts, Usage, Notifications, Settings), with light and dark themes (light by default;
+  switch to dark or follow the system setting from the top bar). Every state has a text label and
+  an icon, never colour alone, and every chart has a data-table view.
 - **Safe query model:** the browser never sends PromQL or LogQL. It sends allow-listed descriptors
   (strict schemas reject unknown fields), and the server generates every query with the caller's
   organization and project.

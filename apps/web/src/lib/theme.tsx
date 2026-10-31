@@ -9,9 +9,9 @@ const media = () => window.matchMedia('(prefers-color-scheme: dark)');
 function readPreference(): ThemePreference {
   try {
     const value = localStorage.getItem(STORAGE_KEY);
-    return value === 'light' || value === 'dark' ? value : 'system';
+    return value === 'dark' || value === 'system' ? value : 'light';
   } catch {
-    return 'system';
+    return 'light';
   }
 }
 
@@ -27,8 +27,8 @@ interface ThemeContextValue {
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 /**
- * Light / dark / system theme. The choice is a per-browser convenience in localStorage;
- * /theme-init.js applies it before first paint and this provider keeps it in sync afterwards,
+ * Light / dark / system theme, light by default. The choice is a per-browser convenience in
+ * localStorage; /theme-init.js applies it before first paint and this provider keeps it in sync afterwards,
  * including when the OS theme changes while "system" is selected.
  */
 export function ThemeProvider({ children }: { children: ReactNode }) {
