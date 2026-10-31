@@ -8,7 +8,7 @@ document wins (or the document is updated first).
 |---|---|
 | **Style** | Neo-brutalism: thick ink borders, hard offset shadows, flat colour, heavy type |
 | **Phase 1** | Light mode (§1–§13). |
-| **Phase 2** | Dark mode, same style ([§14](#14-phase-2-dark-neo-brutalist)): identical type, shape, and motion; only colours change (cream edges, lavender hard shadows). |
+| **Phase 2** | Dark mode, same style ([§14](#14-phase-2-dark-neo-brutalist)): identical type, borders, and radii on a black canvas; cream edges, a deep violet accent, and deeper light-violet hard shadows. |
 | **Applies to** | `apps/web` only. No API change. |
 | **Token file** | `apps/web/src/index.css`: `:root` (light + shared shape/motion) and `[data-theme='dark']` (dark colours) |
 
@@ -378,14 +378,14 @@ protect nothing and would hurt accessibility).
 ## 14. Phase 2: dark neo-brutalist
 
 Dark mode uses the same components, type, 2 px borders, radii, and press/lift motion as light.
-Only the colour tokens in `[data-theme='dark']` differ, so components carry almost no `dark:`
-classes (the exceptions are the sign-in panel, §14.4, and the setup code block).
+Only the tokens in `[data-theme='dark']` differ (colours and shadow depth), so components carry
+almost no `dark:` classes (the exceptions are the sign-in panel, §14.4, and the setup code block).
 
 ### 14.1 Surfaces and ink
 
 | Token | Hex | Use |
 |---|---|---|
-| `--c-canvas` | `#121117` | Page background (near-black, slight violet) |
+| `--c-canvas` | `#000000` | Page background and sidebar (pure black) |
 | `--c-surface` | `#1a1920` | Cards, inputs, tables, top bar, chart plots |
 | `--c-subtle` | `#24222c` | Table header row, hover fill, code inside cards |
 | `--c-ink` / `--c-line` | `#f2ede2` (cream) | **All borders** (black edges vanish on a dark canvas) |
@@ -396,15 +396,21 @@ classes (the exceptions are the sign-in panel, §14.4, and the setup code block)
 
 ### 14.2 Accent and shadows
 
-| Token | Hex | Note |
+| Token | Value | Note |
 |---|---|---|
-| `--c-accent` | `#b4a5ff` | Same lavender as light; text on it stays ink `#111111` (`--c-accent-fg`) |
-| `--c-accent-hover` | `#c4b8ff` | Lighter on hover (darker would sink into the canvas) |
-| `--c-accent-soft` | `#2d2650` | Selected row, icon tiles, Owner badge |
-| `--c-accent-text` | `#c9bfff` | Links, focus outline |
-| `--c-pink` / `--c-sky` | `#ff90e8` / `#a5dcff` | Unchanged; small areas only |
-| Hard shadows | `2/3/5 px` offset, **lavender `#b4a5ff`** | Same sizes as light (`--sh-chip`, `--sh-control`, `--sh-card`) |
-| Input focus shadow | `3px 3px 0 #ff90e8` (pink) | Distinct from the lavender object shadows |
+| `--c-accent` | `#4821a3` (deep violet) | Primary buttons, active nav item and tab, selected segment, checked chips |
+| `--c-accent-fg` | `#ffffff` | Text on violet is **white** (ink would be 1.8:1) |
+| `--c-accent-hover` | `#5a2fc2` | Brighter on hover |
+| `--c-accent-soft` | `#22163f` | Selected row, icon tiles, Owner badge |
+| `--c-accent-text` | `#c4b0ff` | Links, focus outline (violet itself is too dark for text) |
+| `--c-pink` / `--c-sky` | `#ff90e8` / `#a5dcff` | Unchanged; small areas only, with ink text (the logo icon is fixed to `#111111`) |
+| Hard shadows | **light violet `#8a63e6`** | Lighter than the fill so a button's shadow stays visible next to it |
+| Shadow depth | chip 3 px, control 4 px (hover 5), card 6 px (hover 9) | One step deeper than light (2/3/5) for depth on black; press-in 4 px |
+| Input focus shadow | `3px 3px 0 #ff90e8` (pink) | Distinct from the violet object shadows |
+
+The accent was chosen after comparing lavender, steel, cream, cyan, and several purples: deep
+violet is the furthest from every status colour (OKLab ΔE ≥ 33.6) and from the chart series
+(ΔE ≥ 25.1), so firing incidents, errors, and chart lines remain the loudest things on screen.
 
 Status colours (§2.3) are identical in both themes; their badges keep a cream border.
 
@@ -422,9 +428,9 @@ all have the 2 px cream border, and secret boxes keep the 6 px pink left edge.
 
 ### 14.4 Glare rules
 
-- Lavender stays on small, meaningful areas: primary buttons, the active nav item and tab, the
+- Violet stays on small, meaningful areas: primary buttons, the active nav item and tab, the
   selected segment, checked chips, and shadows.
-- The sign-in panel is a **surface** fill in dark (a full-height lavender panel would glare), with
+- The sign-in panel is a **surface** fill in dark (a full-height accent panel would glare), with
   feature cards on `--c-subtle`.
 
 ### 14.5 Charts
@@ -433,22 +439,21 @@ all have the 2 px cream border, and secret boxes keep the 6 px pink left edge.
   against this surface: all checks pass (worst adjacent CVD ΔE 9.4, normal-vision ΔE 26.5, every
   series ≥ 3:1).
 - Gridlines `#2c2a35`, axis `#4a4658`, ticks fg-muted.
-- Tooltip: surface fill, 2 px cream border, `2px 2px 0 #b4a5ff` shadow.
+- Tooltip: surface fill, 2 px cream border, `3px 3px 0 #8a63e6` shadow.
 
 ### 14.6 Contrast (measured, WCAG 2.2)
 
 | Foreground | Background | Ratio | Needs |
 |---|---|---|---|
-| fg `#f5f1e8` | canvas / surface / subtle | 16.66 / 15.48 / 13.90 | 4.5 |
-| fg-secondary `#d6d1c6` | canvas / surface / subtle | 12.34 / 11.46 / 10.29 | 4.5 |
-| fg-muted `#a9a49b` | canvas / surface / subtle | 7.57 / 7.04 / 6.32 | 4.5 |
-| fg-muted | accent-soft `#2d2650` | 5.63 | 4.5 |
-| fg | accent-soft | 12.38 | 4.5 |
-| accent-text `#c9bfff` | canvas / surface / accent-soft | 11.07 / 10.28 / 8.23 | 4.5 |
-| ink `#111111` | lavender `#b4a5ff` | 8.78 | 4.5 |
+| fg `#f5f1e8` | canvas `#000000` / surface / subtle | 18.63 / 15.48 / 13.90 | 4.5 |
+| fg-secondary `#d6d1c6` | canvas / surface / subtle | 13.79 / 11.46 / 10.29 | 4.5 |
+| fg-muted `#a9a49b` | canvas / surface / subtle | 8.47 / 7.04 / 6.32 | 4.5 |
+| white | accent `#4821a3` / hover `#5a2fc2` | 10.39 / 8.01 | 4.5 |
+| fg / fg-muted | accent-soft `#22163f` | 14.85 / 6.75 | 4.5 |
+| accent-text `#c4b0ff` | canvas / surface / subtle / accent-soft | 11.00 / 9.14 / 8.21 / 8.77 | 4.5 |
 | white | critical `#d03b3b` | 4.80 | 4.5 |
 | setup code `#f2ede2` | `#0c0b10` | 16.80 | 4.5 |
-| cream border `#f2ede2` | canvas / surface | 16.08 / 14.94 | 3 (boundary) |
-| lavender shadow | canvas | 8.73 | 3 |
-| focus `#c9bfff` / pink `#ff90e8` | canvas | 11.07 / 9.31 | 3 |
+| cream border `#f2ede2` | canvas / surface | 17.99 / 14.94 | 3 (boundary) |
+| violet shadow `#8a63e6` | canvas / surface / accent fill | 5.01 / 4.16 / 2.48 | Decorative (the border is the boundary) |
+| focus `#c4b0ff` / pink `#ff90e8` | canvas | 11.00 / 10.41 | 3 |
 | divider `#38354a` | surface | 1.48 | Decorative only |

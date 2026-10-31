@@ -8,8 +8,8 @@
  * border-line, shadow-card, rounded-lg, …), never raw palette steps, so a theme is one block of
  * variables. The resolved theme is set on <html data-theme> by /theme-init.js before first paint.
  *
- * Both themes are neo-brutalist (docs/ui_theme.md): the dark block only swaps colours (cream
- * edges, lavender hard shadows); shape, type, and motion tokens are shared from :root.
+ * Both themes are neo-brutalist (docs/ui_theme.md): the dark block swaps colours (cream edges,
+ * violet accent and shadows) and deepens the shadows; type and radii are shared from :root.
  */
 @custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
 
@@ -72,8 +72,8 @@
 
 [data-theme='dark'] {
   color-scheme: dark;
-  /* Surfaces and ink (§14.1): cream edges on near-black, so frames stay visible */
-  --c-canvas: #121117;
+  /* Surfaces and ink (§14.1): cream edges on a black canvas, so frames stay visible */
+  --c-canvas: #000000;
   --c-surface: #1a1920;
   --c-subtle: #24222c;
   --c-ink: #f2ede2;
@@ -83,12 +83,12 @@
   --c-fg: #f5f1e8;
   --c-fg-secondary: #d6d1c6;
   --c-fg-muted: #a9a49b;
-  /* Accent palette, unchanged hues; text on lavender/pink/sky stays dark ink */
-  --c-accent: #b4a5ff;
-  --c-accent-hover: #c4b8ff;
-  --c-accent-fg: #111111;
-  --c-accent-soft: #2d2650;
-  --c-accent-text: #c9bfff;
+  /* Accent (§14.2): deep violet with white text; pink and sky keep dark ink text */
+  --c-accent: #4821a3;
+  --c-accent-hover: #5a2fc2;
+  --c-accent-fg: #ffffff;
+  --c-accent-soft: #22163f;
+  --c-accent-text: #c4b0ff;
   --c-pink: #ff90e8;
   --c-sky: #a5dcff;
   /* Feedback banners: tinted dark fills, light text, cream border (§14.3) */
@@ -106,13 +106,14 @@
   --c-info-fg: #bfe4ff;
   --c-info-line: #f2ede2;
   --c-overlay: rgb(0 0 0 / 0.6);
-  /* Shape and motion match light; hard shadows are lavender instead of ink (§14.2) */
-  --sh-chip: 2px 2px 0 0 #b4a5ff;
-  --sh-control: 3px 3px 0 0 #b4a5ff;
-  --sh-control-hover: 4px 4px 0 0 #b4a5ff;
-  --sh-card: 5px 5px 0 0 #b4a5ff;
-  --sh-card-hover: 7px 7px 0 0 #b4a5ff;
+  /* Hard shadows in light violet, one step deeper than light for depth on black (§14.2) */
+  --sh-chip: 3px 3px 0 0 #8a63e6;
+  --sh-control: 4px 4px 0 0 #8a63e6;
+  --sh-control-hover: 5px 5px 0 0 #8a63e6;
+  --sh-card: 6px 6px 0 0 #8a63e6;
+  --sh-card-hover: 9px 9px 0 0 #8a63e6;
   --sh-focus: 3px 3px 0 0 #ff90e8;
+  --press: 4px;
 }
 
 @theme inline {

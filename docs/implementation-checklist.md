@@ -274,9 +274,10 @@ saturation load tests, demo video (recorded by the author).
       hard shadows, press motion (off under reduced motion), lavender accent outside the status
       hues, Space Grotesk / Inter / JetBrains Mono; every text pair measured (≥ 4.5:1); data
       (charts, tables, logs) stays on plain white.
-- [x] **Neo-brutalist dark theme** (phase 2, [`ui_theme.md`](ui_theme.md) §14): same type, shape,
-      and motion as light; cream borders, lavender hard shadows, tinted banners; every pair
-      re-measured and the chart palette re-validated against the dark plot surface
+- [x] **Neo-brutalist dark theme** (phase 2, [`ui_theme.md`](ui_theme.md) §14): same type and shape
+      as light on a black canvas; cream borders, deep violet accent with white text, deeper
+      light-violet hard shadows, tinted banners; every pair re-measured and the chart palette
+      re-validated against the dark plot surface
 - [x] Accessibility fix: text on the green "good" badge is ink (white was 3.35:1)
 - [x] Sidebar navigation matching the PRD (§13.1) with organization and project switchers;
       organization **Settings** page (details, retention, members)

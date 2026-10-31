@@ -123,7 +123,7 @@ function Sidebar({
     <>
       <div className="flex h-14 items-center justify-between bw-b border-line px-4">
         <NavLink to={base} className="flex items-center gap-2 font-display font-bold text-fg">
-          <span className="flex size-7 items-center justify-center rounded-lg bw border-ink bg-pink text-accent-fg shadow-chip">
+          <span className="flex size-7 items-center justify-center rounded-lg bw border-ink bg-pink text-[#111111] shadow-chip">
             <Activity className="size-4" strokeWidth={ICON_STROKE} aria-hidden="true" />
           </span>
           AOP

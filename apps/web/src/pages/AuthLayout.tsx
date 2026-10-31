@@ -15,7 +15,7 @@ export function AuthLayout({ title, children }: { title: string; children: React
     <main className="grid min-h-screen lg:grid-cols-2">
       <section className="hidden flex-col justify-between bw-r border-ink bg-accent p-10 text-accent-fg select-none lg:flex dark:bg-surface dark:text-fg">
         <Link to="/" className="flex items-center gap-2 font-display font-bold">
-          <span className="flex size-8 items-center justify-center rounded-lg bw border-ink bg-pink text-accent-fg shadow-chip">
+          <span className="flex size-8 items-center justify-center rounded-lg bw border-ink bg-pink text-[#111111] shadow-chip">
             <Activity className="size-4" strokeWidth={ICON_STROKE} aria-hidden="true" />
           </span>
           AOP{' '}
@@ -52,7 +52,7 @@ export function AuthLayout({ title, children }: { title: string; children: React
             to="/"
             className="flex items-center justify-center gap-2 font-display font-bold text-fg lg:hidden"
           >
-            <span className="flex size-7 items-center justify-center rounded-lg bw border-ink bg-pink text-accent-fg shadow-chip">
+            <span className="flex size-7 items-center justify-center rounded-lg bw border-ink bg-pink text-[#111111] shadow-chip">
               <Activity className="size-4" strokeWidth={ICON_STROKE} aria-hidden="true" />
             </span>
             AOP

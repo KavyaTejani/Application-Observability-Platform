@@ -48,7 +48,7 @@ const THEME: Record<
       secondary: '#d6d1c6',
       surface: '#1a1920',
     },
-    tooltip: { border: '#f2ede2', width: 2, shadow: '2px 2px 0 0 #b4a5ff' },
+    tooltip: { border: '#f2ede2', width: 2, shadow: '3px 3px 0 0 #8a63e6' },
   },
 };
 
