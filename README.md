@@ -7,7 +7,7 @@ alerted (with deduplicated incidents and webhooks) when error rate or latency cr
 > **Status:** Phase 0 (MVP) complete: milestones **M1–M8**. Verified progress, with the evidence
 > for each milestone, is in [`docs/implementation-checklist.md`](docs/implementation-checklist.md).
 > Live demo: <https://aop-app-fbtl.onrender.com> (metrics and logs need the full stack; see
-> [Limitations](#limitations)).
+> [Limitations](#limitations)). **Demo video:** [watch on Google Drive](https://drive.google.com/file/d/1zBrvpsHAN9EckQzw41ej2Ok8VEQUnwKw/view?usp=sharing).
 
 ## Problem
 
@@ -274,7 +274,13 @@ shapes are documented in [`docs/deployment.md`](docs/deployment.md):
 
 ## Demo
 
-A 3–5 minute walkthrough with exact commands and narration is in
+**Video (about 5 minutes):** [watch on Google Drive](https://drive.google.com/file/d/1zBrvpsHAN9EckQzw41ej2Ok8VEQUnwKw/view?usp=sharing)
+
+The video runs the full local stack with the sample store service: creating and revoking an
+ingestion key, live metrics, log search by request ID, an alert firing into a signed webhook, the
+incident resolving, usage quotas, the operator view, and the test and load-test results.
+
+The shot-by-shot script, with the exact commands and narration, is in
 [`docs/demo-script.md`](docs/demo-script.md).
 
 ## Limitations
