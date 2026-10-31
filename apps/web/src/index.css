@@ -8,8 +8,8 @@
  * border-line, shadow-card, rounded-lg, …), never raw palette steps, so a theme is one block of
  * variables. The resolved theme is set on <html data-theme> by /theme-init.js before first paint.
  *
- * Light = neo-brutalist (docs/ui_theme.md). Dark = the calm theme, unchanged until phase 2:
- * its shape tokens (1 px borders, soft shadows, no press movement) reproduce the earlier look.
+ * Both themes are neo-brutalist (docs/ui_theme.md): the dark block only swaps colours (cream
+ * edges, lavender hard shadows); shape, type, and motion tokens are shared from :root.
  */
 @custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
 
@@ -72,53 +72,47 @@
 
 [data-theme='dark'] {
   color-scheme: dark;
-  --c-canvas: #09090b;
-  --c-surface: #18181b;
-  --c-subtle: #222226;
-  --c-ink: #3f3f46;
-  --c-line: #2e2e33;
-  --c-line-strong: #3f3f46;
-  --c-divider: #2e2e33;
-  --c-fg: #fafafa;
-  --c-fg-secondary: #d4d4d8;
-  --c-fg-muted: #a1a1aa;
-  --c-accent: #4f46e5;
-  --c-accent-hover: #6366f1;
-  --c-accent-fg: #ffffff;
-  --c-accent-soft: #1e1b4b;
-  --c-accent-text: #a5b4fc;
-  --c-pink: #4f46e5;
-  --c-sky: #222226;
-  --c-ok: #6ee7b7;
-  --c-ok-soft: #052e22;
-  --c-ok-line: #065f46;
-  --c-warn: #fcd34d;
-  --c-warn-soft: #2d1f05;
-  --c-warn-line: #78350f;
-  --c-danger: #fca5a5;
-  --c-danger-soft: #2a0f0f;
-  --c-danger-line: #7f1d1d;
-  --c-danger-solid: #dc2626;
-  --c-info-bg: #222226;
-  --c-info-fg: #d4d4d8;
-  --c-info-line: #2e2e33;
+  /* Surfaces and ink (§14.1): cream edges on near-black, so frames stay visible */
+  --c-canvas: #121117;
+  --c-surface: #1a1920;
+  --c-subtle: #24222c;
+  --c-ink: #f2ede2;
+  --c-line: #f2ede2;
+  --c-line-strong: #f2ede2;
+  --c-divider: #38354a;
+  --c-fg: #f5f1e8;
+  --c-fg-secondary: #d6d1c6;
+  --c-fg-muted: #a9a49b;
+  /* Accent palette, unchanged hues; text on lavender/pink/sky stays dark ink */
+  --c-accent: #b4a5ff;
+  --c-accent-hover: #c4b8ff;
+  --c-accent-fg: #111111;
+  --c-accent-soft: #2d2650;
+  --c-accent-text: #c9bfff;
+  --c-pink: #ff90e8;
+  --c-sky: #a5dcff;
+  /* Feedback banners: tinted dark fills, light text, cream border (§14.3) */
+  --c-ok: #8be0b2;
+  --c-ok-soft: #0f2a1e;
+  --c-ok-line: #f2ede2;
+  --c-warn: #ffd27a;
+  --c-warn-soft: #2c2210;
+  --c-warn-line: #f2ede2;
+  --c-danger: #ffb3aa;
+  --c-danger-soft: #361513;
+  --c-danger-line: #f2ede2;
+  --c-danger-solid: #d03b3b;
+  --c-info-bg: #152737;
+  --c-info-fg: #bfe4ff;
+  --c-info-line: #f2ede2;
   --c-overlay: rgb(0 0 0 / 0.6);
-  --b-w: 1px;
-  --b-w-thin: 1px;
-  --r-sm: 6px;
-  --r: 8px;
-  --r-lg: 12px;
-  --sh-chip: none;
-  --sh-control: 0 1px 2px 0 rgb(0 0 0 / 0.3);
-  --sh-control-hover: 0 1px 2px 0 rgb(0 0 0 / 0.3);
-  --sh-card: 0 1px 3px 0 rgb(0 0 0 / 0.3), 0 1px 2px -1px rgb(0 0 0 / 0.3);
-  --sh-card-hover: 0 1px 3px 0 rgb(0 0 0 / 0.3), 0 1px 2px -1px rgb(0 0 0 / 0.3);
-  --sh-focus: 0 0 0 3px rgb(79 70 229 / 0.35);
-  --lift: 0px;
-  --lift-card: 0px;
-  --press: 0px;
-  --press-card: 0px;
-  --c-font-display: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
+  /* Shape and motion match light; hard shadows are lavender instead of ink (§14.2) */
+  --sh-chip: 2px 2px 0 0 #b4a5ff;
+  --sh-control: 3px 3px 0 0 #b4a5ff;
+  --sh-control-hover: 4px 4px 0 0 #b4a5ff;
+  --sh-card: 5px 5px 0 0 #b4a5ff;
+  --sh-card-hover: 7px 7px 0 0 #b4a5ff;
+  --sh-focus: 3px 3px 0 0 #ff90e8;
 }
 
 @theme inline {
@@ -169,7 +163,7 @@
   --shadow-focus: var(--sh-focus);
 }
 
-/* Theme-width borders: 2 px in the neo-brutalist light theme, 1 px in dark. */
+/* Theme-width borders (2 px), kept as tokens so a theme can change them in one place. */
 @utility bw {
   border-style: solid;
   border-width: var(--b-w);
@@ -199,7 +193,7 @@
   box-shadow: var(--sh-card);
 }
 
-/* Pressable controls (§6): lift on hover, push in when pressed. No movement in dark mode. */
+/* Pressable controls (§6): lift on hover, push in when pressed. */
 @utility press {
   transition:
     transform 80ms ease-out,

@@ -21,7 +21,7 @@ import type { ProjectContext } from './ProjectPage';
 const SEVERITY_STYLE: Record<Severity, string> = {
   TRACE: 'bg-subtle text-fg-secondary',
   DEBUG: 'bg-subtle text-fg-secondary',
-  INFO: 'bg-surface text-fg dark:bg-line',
+  INFO: 'bg-surface text-fg',
   WARN: 'bg-[#fab219] text-[#0b0b0b]',
   ERROR: 'bg-[#d03b3b] text-white',
   FATAL: 'bg-[#8f1f1f] text-white',
@@ -30,7 +30,7 @@ const SEVERITY_STYLE: Record<Severity, string> = {
 function SeverityBadge({ severity }: { severity: Severity }) {
   return (
     <span
-      className={`inline-block w-14 rounded-sm bw-thin border-ink px-1.5 py-0.5 text-center font-mono text-[11px] font-semibold select-none dark:border-transparent ${SEVERITY_STYLE[severity]}`}
+      className={`inline-block w-14 rounded-sm bw-thin border-ink px-1.5 py-0.5 text-center font-mono text-[11px] font-semibold select-none ${SEVERITY_STYLE[severity]}`}
     >
       {severity}
     </span>
@@ -137,7 +137,7 @@ export function LogsPage() {
             {SEVERITIES.map((s) => (
               <label
                 key={s}
-                className="flex cursor-pointer items-center gap-1.5 rounded-lg bw border-line-strong px-2.5 py-1 text-xs font-medium text-fg-secondary has-[:checked]:border-ink has-[:checked]:bg-accent has-[:checked]:text-accent-fg has-[:checked]:shadow-chip dark:has-[:checked]:border-accent dark:has-[:checked]:bg-accent-soft dark:has-[:checked]:text-accent-text"
+                className="flex cursor-pointer items-center gap-1.5 rounded-lg bw border-line-strong px-2.5 py-1 text-xs font-medium text-fg-secondary has-[:checked]:border-ink has-[:checked]:bg-accent has-[:checked]:text-accent-fg has-[:checked]:shadow-chip"
               >
                 <input
                   type="checkbox"

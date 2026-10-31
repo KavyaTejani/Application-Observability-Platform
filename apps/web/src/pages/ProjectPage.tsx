@@ -60,7 +60,7 @@ export function ProjectLayout() {
   const tab = ({ isActive }: { isActive: boolean }) =>
     `inline-flex items-center gap-1.5 rounded-t-lg px-3 py-2 font-display text-sm font-semibold transition-colors ${
       isActive
-        ? '-mb-[var(--b-w)] bw border-b-0 border-ink bg-accent text-accent-fg dark:mb-0 dark:rounded-none dark:border-0 dark:border-b-2 dark:border-accent dark:bg-transparent dark:text-fg'
+        ? '-mb-[var(--b-w)] bw border-b-0 border-ink bg-accent text-accent-fg'
         : 'text-fg-muted hover:text-fg'
     }`;
 
@@ -347,7 +347,7 @@ function RevealedKey({ created, onDismiss }: { created: CreatedApiKey; onDismiss
 
   return (
     <div
-      className="mb-5 rounded-xl bw border-l-[6px] border-warn-line border-l-pink bg-warn-soft p-4 shadow-control dark:border-l-[length:var(--b-w)] dark:border-l-warn-line"
+      className="mb-5 rounded-xl bw border-l-[6px] border-warn-line border-l-pink bg-warn-soft p-4 shadow-control"
       role="status"
     >
       <p className="text-sm font-semibold text-warn">
@@ -384,7 +384,7 @@ function SdkSetupCard({ project }: { project: Project }) {
       title="Connect a service"
       description="Set these environment variables in the service you want to monitor, then verify the connection."
     >
-      <pre className="overflow-x-auto rounded-lg bw border-ink bg-[#111111] p-4 select-all font-mono text-xs leading-relaxed text-[#f2ede2] dark:border-line">
+      <pre className="overflow-x-auto rounded-lg bw border-ink bg-[#111111] p-4 select-all font-mono text-xs leading-relaxed text-[#f2ede2] dark:bg-[#0c0b10]">
         {`AOP_ENDPOINT=${origin}
 AOP_API_KEY=<your key>
 AOP_SERVICE_NAME=${project.slug}

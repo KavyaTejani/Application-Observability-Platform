@@ -15,7 +15,7 @@ import { useTheme, type ResolvedTheme } from '../lib/theme';
 /**
  * Categorical slots 1–3 of the reference palette, with separately selected steps per mode, each
  * validated against this app's card surface (light #ffffff: adjacent CVD ΔE ≥ 9.2, normal-vision
- * ΔE ≥ 27.6; dark #18181b: CVD ΔE ≥ 9.4, normal ΔE ≥ 26.5). Light slot 3 is below 3:1 against
+ * ΔE ≥ 27.6; dark #1a1920: CVD ΔE ≥ 9.4, normal ΔE ≥ 26.5). Light slot 3 is below 3:1 against
  * white, so every chart offers a data-table view (the required relief), and identity is never
  * carried by colour alone.
  */
@@ -24,7 +24,7 @@ const THEME: Record<
   {
     series: readonly string[];
     ink: { muted: string; grid: string; axis: string; secondary: string; surface: string };
-    /** Tooltip frame: the brutalist light theme uses an ink border and hard shadow (§7.10). */
+    /** Tooltip frame: an edge-coloured border and hard shadow in both themes (§7.10, §14.5). */
     tooltip: { border: string; width: number; shadow: string };
   }
 > = {
@@ -42,13 +42,13 @@ const THEME: Record<
   dark: {
     series: ['#3987e5', '#d95926', '#199e70'],
     ink: {
-      muted: '#a1a1aa',
-      grid: '#2a2a2f',
-      axis: '#3f3f46',
-      secondary: '#d4d4d8',
-      surface: '#18181b',
+      muted: '#a9a49b',
+      grid: '#2c2a35',
+      axis: '#4a4658',
+      secondary: '#d6d1c6',
+      surface: '#1a1920',
     },
-    tooltip: { border: '#3f3f46', width: 1, shadow: 'none' },
+    tooltip: { border: '#f2ede2', width: 2, shadow: '2px 2px 0 0 #b4a5ff' },
   },
 };
 

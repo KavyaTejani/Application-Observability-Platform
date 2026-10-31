@@ -56,7 +56,7 @@ export function ProjectsPage() {
             <li key={project.id}>
               <Link
                 to={`/orgs/${org.id}/projects/${project.id}`}
-                className="group press-card flex h-full flex-col frame p-5 dark:hover:border-accent"
+                className="group press-card flex h-full flex-col frame p-5"
               >
                 <div className="flex items-start justify-between gap-2">
                   <span className="flex size-9 items-center justify-center rounded-lg bg-accent-soft text-accent-text">

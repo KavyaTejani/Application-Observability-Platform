@@ -9,31 +9,31 @@ const FEATURES = [
   { icon: BellRing, text: 'Alert rules with deduplicated incidents and signed webhooks' },
 ];
 
-/** Sign-in / register shell (docs/ui_theme.md §8.1). */
+/** Sign-in / register shell (docs/ui_theme.md §8.1; dark panel per §14.4). */
 export function AuthLayout({ title, children }: { title: string; children: ReactNode }) {
   return (
     <main className="grid min-h-screen lg:grid-cols-2">
-      <section className="hidden flex-col justify-between bw-r border-ink bg-accent p-10 text-ink select-none lg:flex dark:border-transparent dark:bg-[#111114] dark:text-zinc-100">
+      <section className="hidden flex-col justify-between bw-r border-ink bg-accent p-10 text-accent-fg select-none lg:flex dark:bg-surface dark:text-fg">
         <Link to="/" className="flex items-center gap-2 font-display font-bold">
-          <span className="flex size-8 items-center justify-center rounded-lg bw border-ink bg-pink shadow-chip dark:border-transparent dark:bg-accent">
+          <span className="flex size-8 items-center justify-center rounded-lg bw border-ink bg-pink text-accent-fg shadow-chip">
             <Activity className="size-4" strokeWidth={ICON_STROKE} aria-hidden="true" />
           </span>
           AOP{' '}
-          <span className="font-sans font-normal text-ink/70 dark:text-zinc-400">
+          <span className="font-sans font-normal text-accent-fg/70 dark:text-fg-muted">
             Application Observability
           </span>
         </Link>
         <div className="max-w-md">
-          <h2 className="text-4xl leading-tight font-bold tracking-tight dark:text-white">
+          <h2 className="text-4xl leading-tight font-bold tracking-tight">
             Know when your Node.js services slow down — and why.
           </h2>
           <ul className="mt-8 space-y-3">
             {FEATURES.map(({ icon: Icon, text }) => (
               <li
                 key={text}
-                className="flex items-center gap-3 rounded-lg bw border-ink bg-surface p-3 text-sm font-medium text-ink shadow-chip dark:border-transparent dark:bg-white/5 dark:p-0 dark:font-normal dark:text-zinc-300 dark:shadow-none"
+                className="flex items-center gap-3 rounded-lg bw border-ink bg-surface p-3 text-sm font-medium text-fg shadow-chip dark:bg-subtle"
               >
-                <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bw border-ink bg-accent-soft dark:border-transparent dark:bg-white/10 dark:text-indigo-300">
+                <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bw border-ink bg-accent-soft text-accent-text">
                   <Icon className="size-4" strokeWidth={ICON_STROKE} aria-hidden="true" />
                 </span>
                 {text}
@@ -41,7 +41,7 @@ export function AuthLayout({ title, children }: { title: string; children: React
             ))}
           </ul>
         </div>
-        <p className="font-mono text-xs text-ink/70 dark:text-zinc-500">
+        <p className="font-mono text-xs text-accent-fg/70 dark:text-fg-muted">
           Multi-tenant · metrics in Prometheus · logs in Loki
         </p>
       </section>
@@ -52,12 +52,12 @@ export function AuthLayout({ title, children }: { title: string; children: React
             to="/"
             className="flex items-center justify-center gap-2 font-display font-bold text-fg lg:hidden"
           >
-            <span className="flex size-7 items-center justify-center rounded-lg bw border-ink bg-pink text-ink shadow-chip dark:border-transparent dark:bg-accent dark:text-accent-fg">
+            <span className="flex size-7 items-center justify-center rounded-lg bw border-ink bg-pink text-accent-fg shadow-chip">
               <Activity className="size-4" strokeWidth={ICON_STROKE} aria-hidden="true" />
             </span>
             AOP
           </Link>
-          <div className="mt-6 frame p-6 lg:mt-0 dark:border-0 dark:bg-transparent dark:p-0 dark:shadow-none">
+          <div className="mt-6 frame p-6 lg:mt-0">
             <h1 className="text-2xl font-bold tracking-tight text-fg">{title}</h1>
             <div className="mt-6">{children}</div>
           </div>

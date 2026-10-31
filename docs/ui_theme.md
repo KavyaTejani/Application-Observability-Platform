@@ -1,4 +1,4 @@
-# UI Theme Specification — Neo-Brutalist (Light)
+# UI Theme Specification — Neo-Brutalist (Light and Dark)
 
 This is the single source of truth for the web app's visual design. Every value an
 implementation needs is listed here. If a component looks different from this document, the
@@ -7,10 +7,10 @@ document wins (or the document is updated first).
 | | |
 |---|---|
 | **Style** | Neo-brutalism: thick ink borders, hard offset shadows, flat colour, heavy type |
-| **Phase 1 (this document)** | Light mode only. It replaces the current light theme. |
-| **Dark mode** | Keeps its calm colours, 1 px borders, soft shadows, and no press movement (its own shape tokens). It shares the type scale and layout, and the accessibility fix to the "good" badge (§2.3). Phase 2 (a neo-brutalist dark mode) is planned in [§14](#14-phase-2-dark-neo-brutalist-later). |
+| **Phase 1** | Light mode (§1–§13). |
+| **Phase 2** | Dark mode, same style ([§14](#14-phase-2-dark-neo-brutalist)): identical type, shape, and motion; only colours change (cream edges, lavender hard shadows). |
 | **Applies to** | `apps/web` only. No API change. |
-| **Token file** | `apps/web/src/index.css` (`:root` / `[data-theme='light']` block) |
+| **Token file** | `apps/web/src/index.css`: `:root` (light + shared shape/motion) and `[data-theme='dark']` (dark colours) |
 
 ---
 
@@ -375,15 +375,80 @@ protect nothing and would hurt accessibility).
 
 ---
 
-## 14. Phase 2: dark neo-brutalist (later)
+## 14. Phase 2: dark neo-brutalist
 
-Only after phase 1 is done and the demo video is recorded. The points below are the risks
-identified up front, and how the dark variant will handle them.
+Dark mode uses the same components, type, 2 px borders, radii, and press/lift motion as light.
+Only the colour tokens in `[data-theme='dark']` differ, so components carry almost no `dark:`
+classes (the exceptions are the sign-in panel, §14.4, and the setup code block).
 
-| Risk | Plan |
-|---|---|
-| Black borders and shadows vanish on a dark background | Borders become a light ink (`#f2ede2`); shadows become a hard **coloured** offset (lavender `#b4a5ff` or pink) instead of black |
-| Loud colour competes with status colours | Same rule as light: decorative palette stays lavender/pink/sky; status hues reserved; data on the darkest surface with light ink |
-| Charts lose readability | Plot stays on the plain dark surface with the already-validated dark series palette (`#3987e5`, `#d95926`, `#199e70`); frame-only decoration |
-| Contrast | Re-measure every pair (§3) against the dark surfaces before shipping |
-| Glare from saturated fills | Lavender/pink used at reduced area (borders, active markers), not as large fills |
+### 14.1 Surfaces and ink
+
+| Token | Hex | Use |
+|---|---|---|
+| `--c-canvas` | `#121117` | Page background (near-black, slight violet) |
+| `--c-surface` | `#1a1920` | Cards, inputs, tables, top bar, chart plots |
+| `--c-subtle` | `#24222c` | Table header row, hover fill, code inside cards |
+| `--c-ink` / `--c-line` | `#f2ede2` (cream) | **All borders** (black edges vanish on a dark canvas) |
+| `--c-divider` | `#38354a` | Row dividers inside tables and lists only |
+| `--c-fg` | `#f5f1e8` | Primary text |
+| `--c-fg-secondary` | `#d6d1c6` | Body copy |
+| `--c-fg-muted` | `#a9a49b` | Captions, hints, axis labels |
+
+### 14.2 Accent and shadows
+
+| Token | Hex | Note |
+|---|---|---|
+| `--c-accent` | `#b4a5ff` | Same lavender as light; text on it stays ink `#111111` (`--c-accent-fg`) |
+| `--c-accent-hover` | `#c4b8ff` | Lighter on hover (darker would sink into the canvas) |
+| `--c-accent-soft` | `#2d2650` | Selected row, icon tiles, Owner badge |
+| `--c-accent-text` | `#c9bfff` | Links, focus outline |
+| `--c-pink` / `--c-sky` | `#ff90e8` / `#a5dcff` | Unchanged; small areas only |
+| Hard shadows | `2/3/5 px` offset, **lavender `#b4a5ff`** | Same sizes as light (`--sh-chip`, `--sh-control`, `--sh-card`) |
+| Input focus shadow | `3px 3px 0 #ff90e8` (pink) | Distinct from the lavender object shadows |
+
+Status colours (§2.3) are identical in both themes; their badges keep a cream border.
+
+### 14.3 Feedback banners
+
+| Tone | Fill | Text | Ratio |
+|---|---|---|---|
+| error | `#361513` | `#ffb3aa` | 9.64 |
+| warning | `#2c2210` | `#ffd27a` | 10.98 |
+| success | `#0f2a1e` | `#8be0b2` | 9.78 |
+| info | `#152737` | `#bfe4ff` | 11.44 |
+
+Banners and secret boxes use tinted dark fills (not the light theme's bright fills) to avoid glare;
+all have the 2 px cream border, and secret boxes keep the 6 px pink left edge.
+
+### 14.4 Glare rules
+
+- Lavender stays on small, meaningful areas: primary buttons, the active nav item and tab, the
+  selected segment, checked chips, and shadows.
+- The sign-in panel is a **surface** fill in dark (a full-height lavender panel would glare), with
+  feature cards on `--c-subtle`.
+
+### 14.5 Charts
+
+- Plot on `#1a1920` with the dark series palette `#3987e5`, `#d95926`, `#199e70`, re-validated
+  against this surface: all checks pass (worst adjacent CVD ΔE 9.4, normal-vision ΔE 26.5, every
+  series ≥ 3:1).
+- Gridlines `#2c2a35`, axis `#4a4658`, ticks fg-muted.
+- Tooltip: surface fill, 2 px cream border, `2px 2px 0 #b4a5ff` shadow.
+
+### 14.6 Contrast (measured, WCAG 2.2)
+
+| Foreground | Background | Ratio | Needs |
+|---|---|---|---|
+| fg `#f5f1e8` | canvas / surface / subtle | 16.66 / 15.48 / 13.90 | 4.5 |
+| fg-secondary `#d6d1c6` | canvas / surface / subtle | 12.34 / 11.46 / 10.29 | 4.5 |
+| fg-muted `#a9a49b` | canvas / surface / subtle | 7.57 / 7.04 / 6.32 | 4.5 |
+| fg-muted | accent-soft `#2d2650` | 5.63 | 4.5 |
+| fg | accent-soft | 12.38 | 4.5 |
+| accent-text `#c9bfff` | canvas / surface / accent-soft | 11.07 / 10.28 / 8.23 | 4.5 |
+| ink `#111111` | lavender `#b4a5ff` | 8.78 | 4.5 |
+| white | critical `#d03b3b` | 4.80 | 4.5 |
+| setup code `#f2ede2` | `#0c0b10` | 16.80 | 4.5 |
+| cream border `#f2ede2` | canvas / surface | 16.08 / 14.94 | 3 (boundary) |
+| lavender shadow | canvas | 8.73 | 3 |
+| focus `#c9bfff` / pink `#ff90e8` | canvas | 11.07 / 9.31 | 3 |
+| divider `#38354a` | surface | 1.48 | Decorative only |

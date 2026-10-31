@@ -57,7 +57,7 @@ export function ProjectDashboardPage() {
         <div
           role="group"
           aria-label="Time range"
-          className="flex gap-0.5 rounded-lg bw border-line bg-surface p-0.5 select-none dark:bg-subtle"
+          className="flex gap-0.5 rounded-lg bw border-line bg-surface p-0.5 select-none"
         >
           {TIME_RANGES.map((r) => (
             <button
@@ -66,9 +66,7 @@ export function ProjectDashboardPage() {
               aria-pressed={r === range}
               onClick={() => setRange(r)}
               className={`rounded-md px-3 py-1 font-display text-sm font-semibold transition-colors ${
-                r === range
-                  ? 'bg-accent text-accent-fg dark:bg-surface dark:text-fg'
-                  : 'text-fg-muted hover:text-fg'
+                r === range ? 'bg-accent text-accent-fg' : 'text-fg-muted hover:text-fg'
               }`}
             >
               {r}

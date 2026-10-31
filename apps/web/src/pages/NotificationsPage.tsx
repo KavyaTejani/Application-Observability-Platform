@@ -194,7 +194,7 @@ function CreateDestinationForm({ organizationId }: { organizationId: string }) {
     <Card title="Add a webhook destination">
       {secret && (
         <div
-          className="mb-5 rounded-xl bw border-l-[6px] border-warn-line border-l-pink bg-warn-soft p-4 text-sm shadow-control dark:border-l-[length:var(--b-w)] dark:border-l-warn-line"
+          className="mb-5 rounded-xl bw border-l-[6px] border-warn-line border-l-pink bg-warn-soft p-4 text-sm shadow-control"
           role="status"
         >
           <p className="font-semibold text-warn">

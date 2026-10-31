@@ -10,9 +10,9 @@ import { AlertTriangle, CheckCircle2, Info, Loader2, XCircle, type LucideIcon } 
 /*
  * Shared UI primitives (docs/ui_theme.md §7). Controls and labels are not text-selectable
  * (`select-none`), so double-clicking a button never highlights it; content stays selectable,
- * and secrets/IDs select in one click (`select-all`, §7.12). Colours, border widths, radii, shadows, and press
- * movement all come from theme tokens in index.css, so the same markup renders the
- * neo-brutalist light theme and the calm dark theme.
+ * and secrets/IDs select in one click (`select-all`, §7.12). Colours, border widths, radii, shadows,
+ * and press movement all come from theme tokens in index.css, so the same markup renders both the
+ * light and the dark neo-brutalist theme.
  */
 
 /** Lucide's default stroke looks thin next to 2 px borders (§9). */
@@ -22,11 +22,11 @@ type ButtonVariant = 'primary' | 'secondary' | 'danger' | 'danger-outline' | 'gh
 
 const BUTTON: Record<ButtonVariant, string> = {
   primary:
-    'press bw border-ink bg-accent text-accent-fg shadow-control hover:bg-accent-hover disabled:opacity-50 dark:border-transparent',
+    'press bw border-ink bg-accent text-accent-fg shadow-control hover:bg-accent-hover disabled:opacity-50',
   secondary:
     'press bw border-line-strong bg-surface text-fg shadow-control hover:bg-subtle disabled:text-fg-muted',
   danger:
-    'press bw border-ink bg-danger-solid text-white shadow-control hover:brightness-110 disabled:opacity-50 dark:border-transparent',
+    'press bw border-ink bg-danger-solid text-white shadow-control hover:brightness-110 disabled:opacity-50',
   'danger-outline':
     'press bw border-line-strong bg-surface text-danger shadow-control hover:bg-danger-soft disabled:opacity-50',
   ghost: 'text-fg-secondary hover:bg-subtle hover:text-fg disabled:text-fg-muted',
@@ -64,7 +64,7 @@ export function Button({
 }
 
 const FIELD =
-  'mt-1.5 block h-10 w-full rounded-lg bw bg-surface px-3 text-sm text-fg placeholder:text-fg-muted focus:shadow-focus focus:outline-none dark:focus:border-accent disabled:bg-subtle disabled:text-fg-muted';
+  'mt-1.5 block h-10 w-full rounded-lg bw bg-surface px-3 text-sm text-fg placeholder:text-fg-muted focus:shadow-focus focus:outline-none disabled:bg-subtle disabled:text-fg-muted';
 
 function FieldMessage({ id, error, hint }: { id: string; error?: string; hint?: string }) {
   if (error)
@@ -144,7 +144,7 @@ export function SelectField({
 
 /** Class string for bare inputs/selects that sit outside a labelled field (filters, toolbars). */
 export const inputClass =
-  'h-9 rounded-lg bw border-line-strong bg-surface px-2.5 text-sm text-fg focus:shadow-focus focus:outline-none dark:focus:border-accent';
+  'h-9 rounded-lg bw border-line-strong bg-surface px-2.5 text-sm text-fg focus:shadow-focus focus:outline-none';
 
 const ALERT: Record<'error' | 'info' | 'success' | 'warning', { box: string; icon: LucideIcon }> = {
   error: { box: 'border-danger-line bg-danger-soft text-danger', icon: XCircle },
@@ -251,7 +251,7 @@ export function EmptyState({
 }) {
   return (
     <div className="flex flex-col items-center px-6 py-10 text-center">
-      <div className="flex size-12 items-center justify-center rounded-lg bw border-ink bg-accent-soft text-accent-text shadow-chip dark:border-transparent">
+      <div className="flex size-12 items-center justify-center rounded-lg bw border-ink bg-accent-soft text-accent-text shadow-chip">
         <Icon aria-hidden="true" strokeWidth={ICON_STROKE} className="size-5" />
       </div>
       <p className="mt-3 font-display text-sm font-bold text-fg">{title}</p>
@@ -299,8 +299,8 @@ export function Pill({
     <span
       className={`inline-flex items-center gap-1 rounded-full bw-thin px-2 py-0.5 text-xs font-medium select-none ${
         tone === 'accent'
-          ? 'border-ink bg-accent-soft text-accent-text dark:border-transparent'
-          : 'border-ink bg-surface text-fg dark:border-transparent dark:bg-subtle dark:text-fg-secondary'
+          ? 'border-ink bg-accent-soft text-accent-text'
+          : 'border-ink bg-surface text-fg'
       }`}
     >
       {children}

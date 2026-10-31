@@ -67,14 +67,14 @@ export function AppLayout() {
         />
       )}
       <aside
-        className={`fixed inset-y-0 left-0 z-40 flex w-64 flex-col bw-r border-line bg-canvas transition-transform select-none dark:bg-surface lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-40 flex w-64 flex-col bw-r border-line bg-canvas transition-transform select-none lg:translate-x-0 ${
           menuOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
         <Sidebar org={current} organizations={organizations} onClose={() => setMenuOpen(false)} />
       </aside>
 
-      <header className="sticky top-0 z-20 flex h-14 items-center gap-3 bw-b border-line bg-surface px-4 select-none sm:px-6 dark:bg-surface/80 dark:backdrop-blur">
+      <header className="sticky top-0 z-20 flex h-14 items-center gap-3 bw-b border-line bg-surface px-4 select-none sm:px-6">
         <button
           type="button"
           className="-ml-1 rounded-lg p-1.5 text-fg-secondary hover:bg-subtle lg:hidden"
@@ -123,7 +123,7 @@ function Sidebar({
     <>
       <div className="flex h-14 items-center justify-between bw-b border-line px-4">
         <NavLink to={base} className="flex items-center gap-2 font-display font-bold text-fg">
-          <span className="flex size-7 items-center justify-center rounded-lg bw border-ink bg-pink text-ink shadow-chip dark:border-transparent dark:text-accent-fg">
+          <span className="flex size-7 items-center justify-center rounded-lg bw border-ink bg-pink text-accent-fg shadow-chip">
             <Activity className="size-4" strokeWidth={ICON_STROKE} aria-hidden="true" />
           </span>
           AOP
@@ -217,8 +217,8 @@ function NavItem({
       className={({ isActive }) =>
         `flex items-center gap-2.5 rounded-lg bw px-2 py-1.5 font-display text-sm font-semibold transition-colors ${
           isActive
-            ? 'border-ink bg-accent text-accent-fg shadow-chip dark:border-transparent dark:bg-accent-soft dark:text-accent-text'
-            : 'border-transparent text-fg-secondary hover:border-ink hover:bg-surface hover:text-fg dark:hover:border-transparent dark:hover:bg-subtle'
+            ? 'border-ink bg-accent text-accent-fg shadow-chip'
+            : 'border-transparent text-fg-secondary hover:border-ink hover:bg-surface hover:text-fg'
         }`
       }
     >
@@ -246,7 +246,7 @@ function Switcher({
       <label className="sr-only" htmlFor={`switch-${label}`}>
         {label}
       </label>
-      <div className="flex items-center gap-2 rounded-lg bw border-line bg-surface px-2 py-1.5 shadow-chip dark:bg-subtle/60 dark:hover:border-line-strong">
+      <div className="flex items-center gap-2 rounded-lg bw border-line bg-surface px-2 py-1.5 shadow-chip">
         <div className="relative min-w-0 flex-1">
           <select
             id={`switch-${label}`}
@@ -295,9 +295,7 @@ function ThemeToggle() {
           title={`${label} theme`}
           onClick={() => setPreference(value)}
           className={`rounded-lg p-1.5 transition-colors ${
-            preference === value
-              ? 'bg-accent text-accent-fg dark:bg-subtle dark:text-fg'
-              : 'text-fg-muted hover:text-fg'
+            preference === value ? 'bg-accent text-accent-fg' : 'text-fg-muted hover:text-fg'
           }`}
         >
           <Icon className="size-3.5" strokeWidth={ICON_STROKE} aria-hidden="true" />
@@ -323,7 +321,7 @@ function AccountMenu({ email, name }: { email: string; name: string }) {
   return (
     <div className="flex items-center gap-2">
       <span
-        className="flex size-8 items-center justify-center rounded-full bw border-ink bg-accent-soft font-display text-xs font-bold text-accent-text dark:border-transparent"
+        className="flex size-8 items-center justify-center rounded-full bw border-ink bg-accent-soft font-display text-xs font-bold text-accent-text"
         aria-hidden="true"
       >
         {initials}
